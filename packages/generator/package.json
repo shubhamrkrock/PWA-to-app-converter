@@ -1,0 +1,8 @@
+{
+  "name": "@git2app/generator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": { "@git2app/shared": "0.1.0" }
+}

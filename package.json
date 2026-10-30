@@ -1,0 +1,26 @@
+{
+  "name": "git2app",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Git2App: turns a GitHub-hosted web app or PWA into Android (APK/AAB) and iOS (IPA) packages.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "node --test --test-concurrency=1 'tests/**/*.test.ts'",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "analyze": "node packages/analyzer/bin/analyze.ts",
+    "runner": "node packages/runner/bin/g2a-runner.ts",
+    "dev:web": "npm --workspace apps/web run dev",
+    "dev:api": "npm --workspace apps/api run dev",
+    "build:web": "npm --workspace apps/web run build"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "@types/node": "22.19.3"
+  }
+}
