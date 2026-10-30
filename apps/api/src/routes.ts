@@ -468,7 +468,7 @@ export function buildRouter(): Router<Ctx> {
     if (!a) throw notFound('Artifact not found');
     if (Date.parse(a.expires_at) < ctx.deps.now()) throw new HttpError(410, 'expired', 'This artifact has expired. Rebuild to get a new one.');
     // Packages are offered only after validation (PRD principle 13). Logs and reports are always downloadable.
-    if (['apk', 'aab', 'ipa'].includes(a.artifact_type) && !a.validated) throw conflict('This package has not passed validation');
+    if (['apk', 'aab', 'ipa', 'ios-simulator-app'].includes(a.artifact_type) && !a.validated) throw conflict('This package has not passed validation');
     const token = await signToken(ctx.deps.env.STATE_SECRET, { a: a.id, k: a.storage_key, exp: Math.floor(ctx.deps.now() / 1000) + 600 });
     await audit(ctx, user.id, 'artifact.download_url', a.id);
     return json({ url: `${ctx.deps.env.API_ORIGIN}${V}/dl/${token}`, expiresIn: 600 });
@@ -687,10 +687,10 @@ export function buildRouter(): Router<Ctx> {
     const t = await requireTicket(req, ctx, p);
     if (t.k !== 'build') throw badRequest('Only builds upload artifacts');
     const type = p.type!;
-    if (!['apk', 'aab', 'ipa', 'android-project', 'ios-project', 'report'].includes(type)) throw badRequest('Unknown artifact type');
+    if (!['apk', 'aab', 'ipa', 'ios-simulator-app', 'android-project', 'ios-project', 'report'].includes(type)) throw badRequest('Unknown artifact type');
     const b = await ctx.service.one<BuildRow>('builds', { id: eq(t.j), select: 'id,user_id,status,platform' });
     if (!b || isTerminal(b.status)) throw conflict('Build is not active');
-    if (type === 'ipa' && b.platform !== 'ios') throw badRequest('IPA only from iOS builds');
+    if ((type === 'ipa' || type === 'ios-simulator-app') && b.platform !== 'ios') throw badRequest('IPA and simulator apps only from iOS builds');
     if ((type === 'apk' || type === 'aab') && b.platform !== 'android') throw badRequest('APK/AAB only from Android builds');
     const declared = (req.headers.get('x-sha256') ?? '').toLowerCase();
     if (!/^[0-9a-f]{64}$/.test(declared)) throw badRequest('x-sha256 header required');

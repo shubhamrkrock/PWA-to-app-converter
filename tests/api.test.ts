@@ -331,6 +331,22 @@ test('worker ticket: refused once the build is cancelled', async () => {
   assert.ok(w.ghCalls.some((c) => c.path.endsWith('/actions/runs/1001/cancel')));
 });
 
+test('iOS debug builds upload a simulator app; Android builds cannot', async () => {
+  const { w, call } = await setup();
+  const mac = await w.oidc({ workflow_ref: `${w.env.WORKERS_REPO}/.github/workflows/g2a-ios.yml@refs/heads/main` });
+  const iosId = await queuedBuild(w, call, 'ios');
+  const ios = (await call('POST', `/api/v1/internal/jobs/build/${iosId}/claim`, { token: mac })).data.ticket as string;
+  const andId = await queuedBuild(w, call);
+  const and = (await call('POST', `/api/v1/internal/jobs/build/${andId}/claim`, { token: await w.oidc({}) })).data.ticket as string;
+  const zip = new TextEncoder().encode('PK fake simulator app');
+  const sum = await sha256Hex(zip);
+  assert.equal((await call('PUT', `/api/v1/internal/jobs/build/${andId}/artifacts/ios-simulator-app`, { token: and, raw: zip, headers: { 'x-sha256': sum } })).status, 400);
+  const up = await call('PUT', `/api/v1/internal/jobs/build/${iosId}/artifacts/ios-simulator-app?name=App.app.zip`, { token: ios, raw: zip, headers: { 'x-sha256': sum } });
+  assert.equal(up.status, 201);
+  // not validated, so not downloadable, like any other package
+  assert.equal((await call('POST', `/api/v1/artifacts/${up.data.id}/download-url`, { token: await w.tokenFor(ALICE) })).status, 409);
+});
+
 test('unvalidated packages are never offered for download', async () => {
   const { w, call } = await setup();
   await seedAlice(w);
