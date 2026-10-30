@@ -160,6 +160,7 @@ export interface ActionsClaims extends JwtClaims {
   run_id: string;
   workflow_ref: string;
   event_name: string;
+  environment?: string;
 }
 
 let jwksCache: { at: number; keys: Jwk[] } | null = null;

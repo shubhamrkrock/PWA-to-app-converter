@@ -607,12 +607,6 @@ export function buildRouter(): Router<Ctx> {
     const project = (await ctx.service.one<ProjectRow>('projects', { id: eq(b.project_id), select: '*' }))!;
     const cfg = b.configuration_id ? await ctx.service.one<ConfigRow>('app_configurations', { id: eq(b.configuration_id), select: '*' }) : null;
     if (!cfg) throw conflict('Configuration missing');
-    let signing: Record<string, string> | null = null;
-    if (b.variant === 'release') {
-      const credId = (b.build_metadata.signing as Record<string, string> | undefined)?.[b.platform];
-      if (!credId) throw conflict('Release build has no signing credential');
-      signing = await openCredentialRow(ctx, b.user_id, credId);
-    }
     return json({
       kind: 'build',
       jobId: b.id,
@@ -622,9 +616,34 @@ export function buildRouter(): Router<Ctx> {
       repo: await repoSpec(ctx, project, b.commit_sha),
       build: { outputDir: project.output_dir, hostedOrigin: project.hosted_origin },
       config: configFromRow(cfg),
-      signing,
+      // Signing material is never in the spec: the job that runs the app's own code (install,
+      // web build, compile) must not be able to reach it. A separate signing job fetches it.
+      needsSigning: b.variant === 'release',
       status: b.status,
     });
+  });
+
+  // 2b) Signing material, for release builds only. Callable only by the signing job: a run of
+  //     the same workflow run that claimed the build, in the g2a-signing environment (a fresh VM
+  //     that never runs repository code), while the build is at the SIGNING stage.
+  r.on('POST', `${V}/internal/jobs/build/:id/signing`, async (req, p, ctx) => {
+    const { env, now } = ctx.deps;
+    const id = uuidParam(p.id);
+    const oidc = (req.headers.get('authorization') ?? '').replace(/^Bearer /, '');
+    const jwks = await actionsJwks(ctx.deps.fetch, now());
+    const claims = await verifyActionsToken(oidc, { audience: env.API_ORIGIN, workersRepo: env.WORKERS_REPO, workersRef: env.WORKERS_REF, jwks, now: now() });
+    if (!claims) throw unauthorized('Worker identity could not be verified');
+    if (claims.environment !== 'g2a-signing') throw forbidden('Signing material is only released to the signing job');
+    const b = await ctx.service.one<BuildRow>('builds', { id: eq(id), select: '*' });
+    if (!b) throw notFound('Build not found');
+    if (b.worker_id !== claims.run_id) throw forbidden('This run did not claim the build');
+    if (b.status !== 'SIGNING' || b.variant !== 'release') throw conflict('Build is not waiting for signing');
+    const credId = (b.build_metadata.signing as Record<string, string> | undefined)?.[b.platform];
+    if (!credId) throw conflict('Release build has no signing credential');
+    const signing = await openCredentialRow(ctx, b.user_id, credId);
+    const ticket = await signToken(env.TICKET_SECRET, { j: b.id, k: 'build', r: claims.run_id, exp: Math.floor(now() / 1000) + 3600 });
+    await audit(ctx, b.user_id, 'credential.released_to_signer', credId, { build: b.id, run: claims.run_id });
+    return json({ signing, ticket });
   });
 
   // 3) Status: forward-only through the shared state machine.

@@ -278,7 +278,7 @@ test('worker ticket: bound to one job; full happy path to a validated, downloada
   const spec = await call('GET', `/api/v1/internal/jobs/build/${id}/spec`, { token: t });
   assert.equal(spec.status, 200);
   assert.equal(spec.data.repo.commitSha, SHA1);
-  assert.equal(spec.data.signing, null); // debug build gets no signing material
+  assert.equal(spec.data.needsSigning, false);
   assert.equal(spec.data.config.packageId, 'com.xpenstack.app');
   // the clone token was narrowed to the one repo, read-only
   const tokenCall = w.ghCalls.filter((c) => c.path.endsWith('/access_tokens')).pop()!;
@@ -361,7 +361,24 @@ test('vault: credentials are stored encrypted, never returned, and decrypted onl
   const id = made.data.builds[0].id;
   const { data } = await call('POST', `/api/v1/internal/jobs/build/${id}/claim`, { token: await w.oidc({}) });
   const spec = await call('GET', `/api/v1/internal/jobs/build/${id}/spec`, { token: data.ticket });
-  assert.deepEqual(spec.data.signing, payload);
+  assert.equal(spec.data.signing, undefined); // the job that runs repo code never sees keys
+  assert.equal(spec.data.needsSigning, true);
+  const signPath = `/api/v1/internal/jobs/build/${id}/signing`;
+  const signer = await w.oidc({ environment: 'g2a-signing' });
+  // too early: the build has not reached SIGNING
+  assert.equal((await call('POST', signPath, { token: signer })).status, 409);
+  for (const st of ['ANALYZING', 'DEPENDENCY_INSTALLATION', 'WEB_BUILD', 'NATIVE_CONFIGURATION', 'PLATFORM_COMPILATION', 'SIGNING']) {
+    await call('POST', `/api/v1/internal/jobs/build/${id}/status`, { token: data.ticket, body: { status: st } });
+  }
+  // the build job itself (no signing environment) is refused, even with the right run
+  assert.equal((await call('POST', signPath, { token: await w.oidc({}) })).status, 403);
+  // another run in the signing environment is refused
+  assert.equal((await call('POST', signPath, { token: await w.oidc({ environment: 'g2a-signing', run_id: '5555' }) })).status, 403);
+  const got = await call('POST', signPath, { token: signer });
+  assert.equal(got.status, 200);
+  assert.deepEqual(got.data.signing, payload);
+  assert.ok(got.data.ticket);
+  assert.ok(w.db.tables.audit_events!.some((e) => e.action === 'credential.released_to_signer'));
   assert.equal((await call('DELETE', `/api/v1/signing-credentials/${stored.data.id}`, { token: bob })).status, 404);
 });
 
