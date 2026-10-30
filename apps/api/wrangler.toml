@@ -1,0 +1,29 @@
+# Git2App API Worker. Secrets are set with `wrangler secret put NAME` (see docs/SETUP.md);
+# nothing secret belongs in this file.
+name = "git2app-api"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+WORKERS_REPO = "shubhamrkrock/PWA-to-app-converter"
+WORKERS_REF = "main"
+CREDENTIALS_KEY_REF = "master-v1"
+# Set these to your real origins before deploying:
+API_ORIGIN = "https://api.git2app.example"
+WEB_ORIGIN = "https://git2app.example"
+GITHUB_APP_SLUG = "git2app"
+
+[[r2_buckets]]
+binding = "ARTIFACTS"
+bucket_name = "git2app-artifacts"
+
+[[queues.producers]]
+binding = "DISPATCH_QUEUE"
+queue = "git2app-dispatch"
+
+[[queues.consumers]]
+queue = "git2app-dispatch"
+max_batch_size = 5
+max_retries = 5
+dead_letter_queue = "git2app-dispatch-dlq"
