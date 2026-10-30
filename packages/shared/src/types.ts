@@ -114,6 +114,10 @@ export interface AppConfiguration {
   backgroundColor: string | null;
   orientation: 'default' | 'portrait' | 'landscape';
   permissions: NativePermission[];
+  /** Why the app needs each permission, in the app's own words (shown by iOS/Android). */
+  permissionText?: Partial<Record<NativePermission, string>>;
+  /** Custom URL scheme for deep links, e.g. "xpenstack" for xpenstack://auth/callback. */
+  urlScheme?: string | null;
   privacyPolicyUrl: string | null;
 }
 

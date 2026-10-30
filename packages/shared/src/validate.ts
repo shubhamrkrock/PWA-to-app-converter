@@ -70,6 +70,18 @@ export function validateConfig(input: Partial<AppConfiguration>): { ok: true; co
   const unknown = permissions.filter((p) => !PERMISSIONS.includes(p));
   if (unknown.length) e.permissions = `Unknown permissions: ${unknown.join(', ')}.`;
 
+  const urlScheme = input.urlScheme ?? null;
+  if (urlScheme !== null && !/^[a-z][a-z0-9+.-]{1,40}$/.test(urlScheme)) e.urlScheme = 'URL scheme must be lower-case letters, digits, + . or -, starting with a letter.';
+  if (urlScheme !== null && ['http', 'https', 'file', 'about', 'javascript', 'data', 'content', 'intent'].includes(urlScheme)) e.urlScheme = 'That URL scheme is reserved.';
+
+  const permissionText: Partial<Record<NativePermission, string>> = {};
+  for (const [k, v] of Object.entries(input.permissionText ?? {})) {
+    if (!PERMISSIONS.includes(k as NativePermission)) continue;
+    const t = String(v ?? '').trim();
+    if (t.length > 0 && (t.length < 15 || t.length > 300)) e.permissionText = 'Each permission explanation must be 15 to 300 characters.';
+    if (t) permissionText[k as NativePermission] = t;
+  }
+
   const privacyPolicyUrl = input.privacyPolicyUrl ?? null;
   if (privacyPolicyUrl !== null && !/^https:\/\/[^\s]+$/.test(privacyPolicyUrl)) e.privacyPolicyUrl = 'Privacy policy must be an https:// link.';
 
@@ -88,13 +100,9 @@ export function validateConfig(input: Partial<AppConfiguration>): { ok: true; co
       backgroundColor: input.backgroundColor ?? null,
       orientation: orientation as AppConfiguration['orientation'],
       permissions: permissions.sort(),
+      permissionText,
+      urlScheme,
       privacyPolicyUrl,
     },
   };
-}
-
-/** Android versionCode derived when the user does not set one: stable and increasing. */
-export function versionCodeFor(version: string, buildNumber: number): number {
-  const [maj, min, pat] = version.split('.').map(Number) as [number, number, number];
-  return Math.min(2_100_000_000, maj * 10_000_000 + min * 100_000 + pat * 1_000 + (buildNumber % 1000));
 }
