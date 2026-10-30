@@ -154,9 +154,9 @@ export class FakeDb {
 // ------------------------------------------------------------------ R2 + Queue
 
 export class FakeR2 implements R2BucketLike {
-  objects = new Map<string, Uint8Array>();
+  objects = new Map<string, Uint8Array<ArrayBuffer>>();
   async put(key: string, value: ReadableStream | ArrayBuffer | Uint8Array | string) {
-    const bytes = typeof value === 'string' ? enc.encode(value) : value instanceof Uint8Array ? value : value instanceof ArrayBuffer ? new Uint8Array(value) : new Uint8Array(await new Response(value).arrayBuffer());
+    const bytes: Uint8Array<ArrayBuffer> = typeof value === 'string' ? enc.encode(value) : value instanceof Uint8Array ? new Uint8Array(value) : value instanceof ArrayBuffer ? new Uint8Array(value) : new Uint8Array(await new Response(value).arrayBuffer());
     this.objects.set(key, bytes);
   }
   async get(key: string) {
