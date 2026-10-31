@@ -34,8 +34,12 @@ const need = (n: string) => {
   return v;
 };
 
+// G2A_WORK_ROOT keeps the job's files outside the runner's home, which the workflow locks
+// away from the sandbox user.
+let root: string | null = null;
 async function workRoot(): Promise<string> {
-  return mkdtemp(join(process.env.RUNNER_TEMP ?? tmpdir(), 'g2a-'));
+  root ??= await mkdtemp(join(process.env.G2A_WORK_ROOT ?? process.env.RUNNER_TEMP ?? tmpdir(), 'g2a-'));
+  return root;
 }
 
 const exitFor = (o: string) => (o === 'completed' || o === 'awaiting-signing' ? 0 : o === 'cancelled' ? 3 : 1);
@@ -59,7 +63,10 @@ async function main(): Promise<number> {
     const r = await runBuild(spec, { reporter, logger, workRoot: await workRoot() });
     await logger.close();
     // Tell the workflow whether the signing job should run.
-    if (process.env.GITHUB_OUTPUT) await import('node:fs').then((fs) => fs.appendFileSync(process.env.GITHUB_OUTPUT!, `needs_signing=${r.outcome === 'awaiting-signing'}\nhandoff=${r.outcome === 'awaiting-signing' ? 'yes' : 'no'}\n`));
+    if (process.env.GITHUB_OUTPUT) {
+      const signing = r.outcome === 'awaiting-signing';
+      await import('node:fs').then((fs) => fs.appendFileSync(process.env.GITHUB_OUTPUT!, `needs_signing=${signing}\nhandoff=${signing ? join(root!, 'handoff') : ''}\n`));
+    }
     return exitFor(r.outcome);
   }
   if (mode === 'sign') {

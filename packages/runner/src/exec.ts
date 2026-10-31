@@ -106,10 +106,18 @@ export async function killSandboxProcesses(): Promise<void> {
 }
 
 /** Give the sandbox user the workspace (Linux worker only). */
+/**
+ * Give the job folder to the sandbox user while the repository's code runs. Both users keep
+ * read-write access through ACLs (and default ACLs, so new files inherit them): the runner
+ * still writes the native project between sandboxed steps. Nothing outside this folder is shared.
+ */
 export async function handToSandbox(dir: string): Promise<void> {
   const user = sandboxUser();
   if (!user) return;
+  const me = process.getuid?.() ?? 0;
   await run('sudo', ['-n', 'chown', '-R', `${user}:${user}`, dir], { cwd: '/' });
+  const acl = `u:${user}:rwX,u:${me}:rwX,m::rwx`;
+  await run('sudo', ['-n', 'setfacl', '-R', '-m', `${acl},d:${acl}`, dir], { cwd: '/' });
 }
 
 /** Take the workspace back after untrusted steps, so the sandbox user cannot change outputs. */
@@ -119,4 +127,5 @@ export async function takeFromSandbox(dir: string): Promise<void> {
   await killSandboxProcesses();
   const me = `${process.getuid?.() ?? 0}:${process.getgid?.() ?? 0}`;
   await run('sudo', ['-n', 'chown', '-R', me, dir], { cwd: '/' });
+  await run('sudo', ['-n', 'setfacl', '-R', '-b', dir], { cwd: '/' });
 }

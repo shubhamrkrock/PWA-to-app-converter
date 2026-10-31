@@ -9,7 +9,7 @@ import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { AppConfiguration } from '@git2app/shared';
 import { capacitorPlan, patchAndroidManifest, patchAppBuildGradle, patchInfoPlist, patchPbxproj, entitlements, TOOLCHAIN, twaManifest } from '@git2app/generator';
-import { run } from './exec.ts';
+import { handToSandbox, run, takeFromSandbox } from './exec.ts';
 import type { Logger } from './log.ts';
 import { StageError } from './workspace.ts';
 
@@ -85,6 +85,9 @@ export async function createCapacitorProject(opts: {
     timeoutMs: 10 * 60_000,
   });
 
+  // The patches are the runner's own edits: take the folder back (this also stops any leftover
+  // sandbox process), patch, then hand it to the sandbox again for `cap sync`.
+  await takeFromSandbox(nativeDir);
   if (platform === 'android') {
     await editFile(join(nativeDir, 'android/app/build.gradle'), (s) => patchAppBuildGradle(s, config));
     await editFile(join(nativeDir, 'android/app/src/main/AndroidManifest.xml'), (s) => patchAndroidManifest(s, config));
@@ -94,6 +97,7 @@ export async function createCapacitorProject(opts: {
     const ent = entitlements(config, opts.variant);
     if (ent) await writeFile(join(nativeDir, 'ios/App/App/App.entitlements'), ent);
   }
+  await handToSandbox(nativeDir);
   await run('npx', ['--no-install', 'cap', 'sync', platform], { cwd: nativeDir, sandbox: true, logger, timeoutMs: 10 * 60_000 });
   return { dir: nativeDir, notes: plan.notes };
 }
