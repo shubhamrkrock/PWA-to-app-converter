@@ -50,13 +50,14 @@ These are enforced in code and in review, not just stated:
                       │  (RLS)
                       ▼
             Build orchestrator (Worker + Queue)
-                      │  signed, single-use job tickets
+                      │  workflow_dispatch (ids only); worker proves itself with GitHub OIDC
           ┌───────────┴─────────────┐
           ▼                          ▼
-   Android worker (Linux)      iOS worker (macOS)
-   ephemeral container         GitHub Actions maceOS / Codemagic
-   Node+JDK+SDK+Gradle         Node+Xcode+CocoaPods
+   g2a-job.yml (Ubuntu VM)     g2a-ios.yml (macOS VM)
+   GitHub Actions, fresh VM    GitHub Actions, fresh VM
+   Node+JDK 21+SDK 36+Gradle   Node+Xcode 26 (Swift PM)
    Bubblewrap / Capacitor      Capacitor iOS
+          │  release builds: unsigned outputs → separate signing job (g2a-signing env)
           │                          │
           ▼                          ▼
         AAB/APK                     IPA
@@ -103,8 +104,9 @@ narrowest possible surface.
 | API | Cloudflare Workers | PRD §11.1; cheap, edge, no server to patch. Rejected: a long-running Node API (ops burden, cost). |
 | Queue | Cloudflare Queues | PRD §11.1; decouples request from build. |
 | Git | **GitHub App** (not OAuth app) | PRD §4.2; per-repo grants, short-lived installation tokens, webhooks. |
-| Android build | Linux container, JDK 21, Android SDK, Gradle, Bubblewrap + Capacitor | PRD §6. |
-| iOS build | **macOS runner** (GitHub Actions `macos-15`, Codemagic as alt) | PRD §7; the owner already uses Codemagic free Macs for Xpenstack. |
+| Build workers | **GitHub Actions** in this (private) repo: `g2a-job.yml` on Ubuntu, `g2a-ios.yml` on macOS | A fresh VM per job, OIDC identity, no servers to run. Rejected for now: our own container fleet (ops cost), Codemagic (a second CI identity to secure; still a fallback for macOS minutes). |
+| Android build | Ubuntu VM, JDK 21, Android SDK 36, Gradle, Capacitor 8.6 (default) or Bubblewrap 1.27 (TWA) | PRD §6. |
+| iOS build | macOS VM, Xcode 26, Capacitor 8.6 with Swift Package Manager (no CocoaPods) | PRD §7. Private-repo macOS minutes cost 10x Linux minutes, so e2e iOS runs are manual. |
 | Artifacts | Cloudflare R2, private, signed URLs | PRD §16.3. |
 | Secrets | Envelope encryption; data key per credential, master key in Worker secret / KMS | PRD §12.8, §16.2. Keys never stored beside ciphertext. |
 | AI analysis | LLM API as an **advisor** over the analyzer's structured output | PRD §15; deterministic tooling owns the verdict. |
@@ -149,24 +151,59 @@ so the API, the runner, and the UI agree on transitions. Illegal transitions thr
 
 ## 7. Security architecture (PRD §16)
 
-- **Isolation**: each build runs in a fresh container/VM, non-root, CPU/mem/time capped,
-  egress restricted to an allowlist (npm, the chosen repo host, Google/Maven for Android,
-  Apple for iOS). No access to orchestrator secrets; it receives only a single-use,
-  short-TTL job ticket and a scoped R2 upload credential.
-- **Repo contents are untrusted**: the runner extracts archives with path-traversal
-  guards, never runs lifecycle scripts it was not asked to (`npm ci --ignore-scripts`
-  where feasible, else inside the sandbox only), and treats `package.json` scripts as data
-  to be shown, not silently executed outside the sandbox.
-- **Credentials**: envelope encryption; secrets are redacted from every log line by a
-  redaction pass keyed on known secret substrings before persistence.
-- **Storage**: private R2, short-lived signed download URLs, SHA-256 checksums, expiry.
-- **Privacy**: disconnecting GitHub revokes the installation and deletes cached repo
-  copies per retention policy. Private source is never sent to train external models.
+**Who can start a build.** Only the API, through `workflow_dispatch` with ids as inputs. The
+workflows pin the API origin to the `G2A_API_ORIGIN` repository variable and refuse any other.
+
+**How a worker proves itself.** It sends its GitHub OIDC token (audience = the API origin) to
+`/internal/jobs/:kind/:id/claim`. The API checks the issuer and key, this repository,
+`refs/heads/main`, the `workflow_dispatch` event and the workflow file (iOS builds only from
+`g2a-ios.yml`, the rest only from `g2a-job.yml`). A claim is single-use and records the run id;
+the API then issues an HMAC job ticket bound to that one job.
+
+**What a build worker gets.** The job spec: a clone token narrowed to the one repository with
+`contents: read`, the commit SHA and the app configuration. Never signing keys.
+
+**Untrusted code (Linux).** The repository's install and build scripts, Gradle and the
+Capacitor CLI run as the `g2a` user (`scripts/worker/setup-linux.sh`): no sudo, an environment
+rebuilt from an allow-list (`sandboxEnv`, which also drops anything named like a runner or
+Actions token), no access to the runner's home (mode 700), and iptables rules that reject cloud
+metadata, the Azure wire server and private ranges for that user. The job folder sits outside
+the runner's home and is shared through ACLs; the runner takes it back (killing every `g2a`
+process first) before it packages anything. The e2e workflow checks all of this from inside a
+real build: the fixture's build script records what it could reach and the check fails if it
+saw a token, the runner's files or the metadata service.
+
+**Untrusted code (macOS).** The same scrubbed environment, but no separate user yet. The worker
+still holds no signing keys, so the exposure is the job's own clone token and ticket for the
+rest of that job. A sandbox user on macOS is a follow-up.
+
+**Signing.** Release builds stop at SIGNING with unsigned outputs. A separate job in the same
+run, on a fresh VM, in the `g2a-signing` GitHub environment, downloads them and asks
+`/internal/jobs/build/:id/signing` for the keys. The API releases them only to an OIDC token
+with `environment: g2a-signing` from the run that claimed the build, while the build is at
+SIGNING, for a release variant; every release is an audit event. The signing job never runs
+repository code. Android: zipalign + apksigner and jarsigner with passwords passed through the
+environment, keystore written 0600 and deleted. iOS: a throwaway keychain with a random
+password, profile checked against the bundle id, team, expiry, distribution type and push.
+
+**Credentials at rest.** AES-GCM envelope encryption with a per-credential data key; the
+master key is a Worker secret; the additional data binds a ciphertext to its user and
+credential id. The browser can see only metadata (`signing_credentials_meta`).
+
+**Logs and artifacts.** Every log line is redacted on the worker (registered secrets and their
+base64 form, token patterns) and again on the API. Artifacts are checksummed on arrival;
+packages are downloadable only when the worker's validation stage passed, through 10-minute
+signed links. The workers repository is private, so Actions logs are not public.
+
+**Known gaps.** Actions are referenced by major tag, not commit SHA; pin them once the owner
+picks a Dependabot policy. Egress is not allow-listed beyond the private-range block, because
+builds legitimately fetch from npm, Maven and Google.
 
 ## 8. Reproducibility
 
-A build records: toolchain image digest, Node version, commit SHA, resolved lockfile hash,
-and the full `app_configurations` snapshot. Re-running with the same inputs and image
+A build records: the toolchain id (`TOOLCHAIN.id` in `packages/generator`, every native
+package pinned exactly), the runner image, commit SHA, resolved lockfile and the full
+`app_configurations` snapshot (`build-report.json`, uploaded with every build). Re-running with the same inputs and image
 digest yields the same artifact (modulo signing timestamps).
 
 ## 9. Phasing (maps to PRD §20) and what this repo delivers first
@@ -175,8 +212,10 @@ digest yields the same artifact (modulo signing timestamps).
   App integration (installation tokens, repo listing), web dashboard shell. *(this PR)*
 - **Phase 2 Analysis** — deterministic analyzer + compatibility/strategy engine, tested
   against the twelve PRD §21.1 fixtures **and** against the real Xpenstack repo. *(this PR)*
-- **Phase 3 Android** — Linux image, Capacitor + Bubblewrap generation, APK/AAB, R2.
-- **Phase 4 iOS** — macOS workflow, Capacitor iOS, archive, IPA.
+- **Phase 3 Android** — Capacitor + Bubblewrap generation, Gradle debug APK and release
+  APK/AAB, separate signing job, validation, R2. *(this PR; compile proven by `e2e.yml`)*
+- **Phase 4 iOS** — macOS workflow, simulator build, unsigned archive, signing job, IPA.
+  *(this PR; first real run needs macOS minutes and Apple credentials)*
 - **Phase 5 Testing/validation; Phase 6 webhooks/automation; Phase 7 commercial.**
 
 ## 10. MVP scope we are building toward (PRD §22)
@@ -188,20 +227,10 @@ plugin generation, team collaboration, AI code modification.
 
 ## 11. Owner action items
 
-Things only Shubham can do (accounts/credentials). The platform is built so these are the
-*only* manual steps:
+The step-by-step list is `docs/SETUP.md`. In short: create the GitHub App, a Supabase project,
+the Cloudflare pieces, the `g2a-signing` environment and `G2A_API_ORIGIN` variable in this
+repo, and, for store builds, the Google Play upload key and Apple distribution certificate,
+profile and App Store Connect key.
 
-1. **Create the Git2App GitHub App** (owner of the GitHub org) and give the platform its
-   App ID, private key, and webhook secret. Needed for repo listing and webhooks.
-2. **Supabase project** for Git2App (separate from Xpenstack's): project URL, anon key, and
-   a service-role key stored only as a Worker secret.
-3. **Cloudflare**: a Pages project for `apps/web`, a Workers deployment for `apps/api`, an
-   R2 bucket, and a Queue. Account ID + API token (Workers/R2/Queues scopes).
-4. **Apple Developer Program** membership + App Store Connect API key, and **Google Play**
-   developer account + upload keystore — only when building *signed* store artifacts. For
-   Xpenstack these already exist (see its `docs/setup/*.html`).
-5. **macOS build capacity**: GitHub Actions macOS minutes, or a Codemagic token (free tier
-   is what Xpenstack uses).
-
-Until these exist, the platform runs in a **dry/unsigned** mode: analysis works fully,
-Android debug/unsigned builds work, and iOS is scaffolded but not archived.
+Until those exist the e2e workflow still proves the pipeline: it builds the fixture PWA into a
+debug APK on every change, and an iOS simulator app on request.
