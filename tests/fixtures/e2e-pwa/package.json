@@ -1,0 +1,9 @@
+{
+  "name": "g2a-e2e-pwa",
+  "private": true,
+  "version": "1.0.0",
+  "description": "End-to-end fixture: a dependency-free PWA whose build also probes the build sandbox.",
+  "scripts": {
+    "build": "node build.mjs --outDir dist"
+  }
+}

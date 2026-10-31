@@ -1,0 +1,17 @@
+{
+  "name": "@git2app/runner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@git2app/shared": "0.1.0",
+    "@git2app/analyzer": "0.1.0",
+    "@git2app/generator": "0.1.0"
+  },
+  "bin": {
+    "g2a-runner": "./bin/g2a-runner.ts"
+  }
+}

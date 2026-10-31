@@ -1,0 +1,11 @@
+{
+  "name": "@git2app/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": { "@git2app/shared": "0.1.0" }
+}
