@@ -193,7 +193,7 @@ export interface World {
   now: () => number;
   tokenFor(uid: string, opts?: { exp?: number; aud?: string }): Promise<string>;
   oidc(claims: Partial<Record<string, unknown>>): Promise<string>;
-  ghCalls: Array<{ method: string; path: string; body?: any }>;
+  ghCalls: Array<{ method: string; path: string; body?: any; iss?: string }>;
   /** GitHub user token -> installations it can see. */
   ghUserInstallations: Record<string, number[]>;
   supabaseKey: CryptoKey;
@@ -263,7 +263,15 @@ export async function makeWorld(): Promise<World> {
       return Response.json(body.code === 'bad' ? { error: 'bad_verification_code' } : { access_token: `user-token-${body.code}` });
     }
     if (url.origin === 'https://api.github.com') {
-      ghCalls.push({ method: req.method, path: url.pathname + url.search, body });
+      // Record which App signed the call (the iss claim of an App JWT).
+      let iss: string | undefined;
+      const auth = req.headers.get('authorization') ?? '';
+      if (/^Bearer [\w-]+\.[\w-]+\.[\w-]+$/.test(auth)) {
+        try {
+          iss = String(JSON.parse(atob(auth.split('.')[1]!.replace(/-/g, '+').replace(/_/g, '/'))).iss);
+        } catch {}
+      }
+      ghCalls.push({ method: req.method, path: url.pathname + url.search, body, iss });
       const p = url.pathname;
       if (/^\/app\/installations\/\d+\/access_tokens$/.test(p)) return Response.json({ token: `ghs_${'x'.repeat(36)}` }, { status: 201 });
       if (/^\/app\/installations\/(\d+)$/.test(p)) return Response.json({ id: Number(p.split('/')[3]), account: { login: 'acct', type: 'User' } });

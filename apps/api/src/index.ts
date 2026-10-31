@@ -17,6 +17,10 @@ export function makeCtx(deps: Deps): Ctx {
   return {
     deps,
     gh: new GithubApp(env.GITHUB_APP_ID, env.GITHUB_APP_PRIVATE_KEY, deps.fetch, deps.now),
+    workers:
+      env.WORKERS_APP_ID && env.WORKERS_APP_PRIVATE_KEY
+        ? new GithubApp(env.WORKERS_APP_ID, env.WORKERS_APP_PRIVATE_KEY, deps.fetch, deps.now)
+        : new GithubApp(env.GITHUB_APP_ID, env.GITHUB_APP_PRIVATE_KEY, deps.fetch, deps.now),
     service: new Db(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, env.SUPABASE_SERVICE_ROLE_KEY, deps.fetch),
   };
 }
@@ -74,7 +78,7 @@ export async function dispatch(msg: DispatchMessage, deps: Deps): Promise<'dispa
   const row = await ctx.service.one<{ status: string; claimed_at: string | null }>(table, { id: eq(msg.jobId), select: 'status,claimed_at' });
   if (!row || row.status !== 'QUEUED' || row.claimed_at) return 'skipped'; // cancelled or already running
   const workflow = msg.kind === 'build' && msg.platform === 'ios' ? 'g2a-ios.yml' : 'g2a-job.yml';
-  await ctx.gh.dispatchWorkflow(env.WORKERS_INSTALLATION_ID, env.WORKERS_REPO, workflow, env.WORKERS_REF, {
+  await ctx.workers.dispatchWorkflow(env.WORKERS_INSTALLATION_ID, env.WORKERS_REPO, workflow, env.WORKERS_REF, {
     job_id: msg.jobId,
     job_kind: msg.kind === 'analyze' ? 'analysis' : 'build',
     api_origin: env.API_ORIGIN,

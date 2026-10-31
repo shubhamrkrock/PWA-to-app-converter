@@ -165,6 +165,17 @@ test('builds: queues one job per platform and variant, dispatches iOS to the mac
   for (const c of dispatched) assert.deepEqual(Object.keys(c.body.inputs).sort(), ['api_origin', 'job_id', 'job_kind']);
 });
 
+test('builds: a separate workers App, when configured, dispatches and cancels; the user-facing App never does', async () => {
+  const { w, call } = await setup();
+  (w.env as any).WORKERS_APP_ID = '777';
+  (w.env as any).WORKERS_APP_PRIVATE_KEY = w.env.GITHUB_APP_PRIVATE_KEY;
+  const { projectId, configId } = await seedAlice(w);
+  await call('POST', `/api/v1/projects/${projectId}/builds`, { token: await w.tokenFor(ALICE), body: { platforms: ['android'], configuration_id: configId } });
+  await dispatch(w.queue.sent[0]!, { env: w.env, fetch: w.fetch, now: w.now });
+  const tokenForWorkers = w.ghCalls.find((c) => c.path === `/app/installations/${w.env.WORKERS_INSTALLATION_ID}/access_tokens`);
+  assert.equal(tokenForWorkers?.iss, '777');
+});
+
 test('builds: refused when analysis says unsupported, when not analyzed, and for TWA without an origin', async () => {
   const { w, call } = await setup();
   const { projectId, configId } = await seedAlice(w);

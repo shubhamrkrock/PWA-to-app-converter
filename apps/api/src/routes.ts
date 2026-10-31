@@ -49,6 +49,8 @@ import { limitsFor, monthStart } from './quotas.ts';
 export interface Ctx {
   deps: Deps;
   gh: GithubApp;
+  /** The App that may start and cancel runs on the workers repository. */
+  workers: GithubApp;
   service: Db;
 }
 
@@ -398,7 +400,7 @@ export function buildRouter(): Router<Ctx> {
     await ctx.service.update('builds', { id: eq(b.id) }, { status: 'CANCELLED', completed_at: new Date(ctx.deps.now()).toISOString() });
     if (b.worker_id) {
       try {
-        await ctx.gh.cancelRun(ctx.deps.env.WORKERS_INSTALLATION_ID, ctx.deps.env.WORKERS_REPO, b.worker_id);
+        await ctx.workers.cancelRun(ctx.deps.env.WORKERS_INSTALLATION_ID, ctx.deps.env.WORKERS_REPO, b.worker_id);
       } catch {
         // The run may have just ended; the job ticket is refused for a cancelled build anyway.
       }
