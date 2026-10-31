@@ -25,7 +25,8 @@ async function findFile(dir: string, ext: string): Promise<string | null> {
   return null;
 }
 
-export async function gradleBuild(androidDir: string, variant: 'debug' | 'release', logger: Logger): Promise<AndroidOutputs> {
+/** Runs Gradle in the sandbox. Find the outputs with androidOutputs() after takeFromSandbox(). */
+export async function gradleBuild(androidDir: string, variant: 'debug' | 'release', logger: Logger): Promise<void> {
   await chmod(join(androidDir, 'gradlew'), 0o755).catch(() => {});
   // Release builds are unsigned here; the signing job signs them.
   const tasks = variant === 'debug' ? ['assembleDebug'] : ['assembleRelease', 'bundleRelease'];
@@ -40,6 +41,13 @@ export async function gradleBuild(androidDir: string, variant: 'debug' | 'releas
         : 'See the first "What went wrong" block in the log.';
     throw new StageError('Gradle compilation failed', hint);
   }
+}
+
+/**
+ * The APK and AAB Gradle produced. Call only once the runner owns the folder again: tools in
+ * the sandbox may create folders with modes that hide them from the runner until then.
+ */
+export async function androidOutputs(androidDir: string, variant: 'debug' | 'release'): Promise<AndroidOutputs> {
   const outDir = join(androidDir, 'app/build/outputs');
   return {
     apk: await findFile(join(outDir, 'apk', variant), '.apk'),

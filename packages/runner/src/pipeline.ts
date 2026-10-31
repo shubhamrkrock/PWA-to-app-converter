@@ -16,7 +16,7 @@ import type { AnalysisSpec, BuildSpec, Reporter } from './reporter.ts';
 import { buildWeb, builtManifest, checkWebOutput, cloneAtCommit, inside, installDependencies, StageError } from './workspace.ts';
 import { chooseIcon, type IconSource } from './icons.ts';
 import { createCapacitorProject, createTwaProject } from './native.ts';
-import { apkFacts, checkAabStructure, checkApkFacts, gradleBuild, signAndroid, verifyApkSignature, type AndroidKey, type AndroidOutputs } from './android.ts';
+import { androidOutputs, apkFacts, checkAabStructure, checkApkFacts, gradleBuild, signAndroid, verifyApkSignature, type AndroidKey, type AndroidOutputs } from './android.ts';
 import { checkAppBundle, signIpa, simulatorBuild, unsignedArchive, type IosKey } from './ios.ts';
 
 export interface PipelineCtx {
@@ -140,10 +140,11 @@ export async function runBuild(spec: BuildSpec, ctx: PipelineCtx): Promise<Build
     await st.enter('PLATFORM_COMPILATION');
     let androidOut: AndroidOutputs | null = null;
     let iosApp: string | null = null;
-    if (spec.platform === 'android') androidOut = await gradleBuild(join(nativeDir, 'android'), spec.variant, ctx.logger);
+    if (spec.platform === 'android') await gradleBuild(join(nativeDir, 'android'), spec.variant, ctx.logger);
     else iosApp = spec.variant === 'debug' ? await simulatorBuild(nativeDir, ctx.logger) : await unsignedArchive(nativeDir, ctx.logger);
     // Untrusted code is finished: stop its processes and take the files back before packaging.
     await takeFromSandbox(ctx.workRoot);
+    if (spec.platform === 'android') androidOut = await androidOutputs(join(nativeDir, 'android'), spec.variant);
 
     const projZip = join(ctx.workRoot, `${spec.platform}-project.zip`);
     const projName = spec.platform === 'android' ? 'android' : 'ios';

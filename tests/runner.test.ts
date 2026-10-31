@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { AppConfiguration } from '../packages/shared/src/index.ts';
-import { checkApkFacts, parseBadging } from '../packages/runner/src/android.ts';
+import { androidOutputs, checkApkFacts, parseBadging } from '../packages/runner/src/android.ts';
 import { checkProfile, parseProfile, signingEntitlements } from '../packages/runner/src/ios.ts';
 import { chooseIcon, isSvg, pngSize } from '../packages/runner/src/icons.ts';
 import { sandboxEnv } from '../packages/runner/src/exec.ts';
@@ -203,4 +203,12 @@ test('chooseIcon never reads outside the source root', async () => {
   const web = tree({ 'm.json': '{}' });
   const rel = join('..', outside.split('/').pop()!, 'secret.png');
   await assert.rejects(chooseIcon([{ root: web, manifest: { path: join(web, 'm.json'), json: { icons: [{ src: rel }, { src: '/../' + rel }] } } }], null), /No square PNG/);
+});
+
+test('androidOutputs finds the APK and, for release, the AAB that Gradle wrote', async () => {
+  const dir = tree({ 'app/build/outputs/apk/release/app-release-unsigned.apk': 'PK', 'app/build/outputs/bundle/release/app-release.aab': 'PK', 'app/build/outputs/apk/debug/app-debug.apk': 'PK' });
+  assert.deepEqual(await androidOutputs(dir, 'debug'), { apk: join(dir, 'app/build/outputs/apk/debug/app-debug.apk'), aab: null });
+  const rel = await androidOutputs(dir, 'release');
+  assert.equal(rel.apk, join(dir, 'app/build/outputs/apk/release/app-release-unsigned.apk'));
+  assert.equal(rel.aab, join(dir, 'app/build/outputs/bundle/release/app-release.aab'));
 });
