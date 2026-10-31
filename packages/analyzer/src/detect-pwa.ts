@@ -16,7 +16,11 @@ const MANIFEST_CANDIDATES = [
   'manifest.json',
   'manifest.webmanifest',
   'src/manifest.json',
+  'src/manifest.webmanifest',
   'static/manifest.json', // sveltekit/nuxt
+  'static/manifest.webmanifest',
+  'public/site.webmanifest', // favicon generators
+  'site.webmanifest',
 ];
 
 interface RawManifest {

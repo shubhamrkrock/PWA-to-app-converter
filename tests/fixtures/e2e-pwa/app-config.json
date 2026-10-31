@@ -1,0 +1,13 @@
+{
+  "appName": "G2A E2E",
+  "packageId": "dev.git2app.e2e",
+  "bundleId": "dev.git2app.e2e",
+  "version": "1.0.0",
+  "buildNumber": 1,
+  "themeColor": "#0F766E",
+  "backgroundColor": "#FFFFFF",
+  "orientation": "portrait",
+  "permissions": ["camera"],
+  "permissionText": { "camera": "The test app uses the camera to check permission prompts." },
+  "privacyPolicyUrl": "https://example.com/privacy"
+}

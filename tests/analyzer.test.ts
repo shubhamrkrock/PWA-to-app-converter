@@ -139,3 +139,17 @@ test('Real repo: Xpenstack is a Vite PWA built into "pages", Capacitor on both p
   assert.equal(r.recommendedIosStrategy, 'capacitor');
   assert.ok(codes(r).includes('NATIVE_NOTIFICATIONS'));
 });
+
+test('manifest under src/ or a favicon-generator site.webmanifest is found', async () => {
+  for (const path of ['src/manifest.webmanifest', 'public/site.webmanifest']) {
+    const r = await analyze(new MemRepoSource({ 'package.json': '{"scripts":{"build":"vite build"}}', [path]: '{"name":"A","icons":[{"src":"i.png","sizes":"512x512"}]}' }));
+    assert.equal(r.pwa.manifest.accessiblePath, path);
+  }
+});
+
+test('the end-to-end fixture app is an installable PWA built into dist', async () => {
+  const r = await analyze(new FsRepoSource(resolve('tests/fixtures/e2e-pwa')));
+  assert.equal(r.pwa.isInstallablePwa, true);
+  assert.equal(r.build.outputDir, 'dist');
+  assert.equal(r.recommendedAndroidStrategy, 'capacitor');
+});

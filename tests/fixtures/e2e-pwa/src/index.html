@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Git2App E2E</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<meta name="theme-color" content="#0F766E">
+</head>
+<body>
+<main><h1>Git2App end-to-end test app</h1><p id="mode"></p></main>
+<script>
+  document.getElementById('mode').textContent = window.Capacitor ? 'Running as a native app' : 'Running in a browser';
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>

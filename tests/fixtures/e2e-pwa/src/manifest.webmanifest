@@ -1,0 +1,9 @@
+{
+  "name": "Git2App E2E",
+  "short_name": "G2A E2E",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#0F766E",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
