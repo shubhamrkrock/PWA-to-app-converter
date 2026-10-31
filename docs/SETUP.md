@@ -75,6 +75,10 @@ and convert its private key as in step 1.
    against the project's public key set and refuses shared-secret (HS256) tokens.
 5. Note the **project URL** and the **anon key** (for the dashboard) and the **service role
    key** (API only, step 5).
+6. Authentication > URL Configuration: Site URL = `WEB`; add `WEB/projects` to the redirect URLs.
+7. The signing vault is off on the free plan. For your own account, once you have signed in
+   once, run in the SQL editor:
+   `update public.profiles set subscription_plan = 'pro' where id = (select id from auth.users where email = 'YOUR EMAIL');`
 
 ## 5. Cloudflare
 
@@ -96,14 +100,16 @@ and convert its private key as in step 1.
 | `CREDENTIALS_MASTER_KEY` | `openssl rand -base64 32`; losing it makes stored signing keys unreadable, so keep a copy in a password manager |
 
 5. `npx wrangler deploy`, then add the custom domain for `API` to the Worker.
+6. Dashboard: Workers & Pages > Create > Pages > connect this repository. Build command
+   `npm ci && npm run build:web`, output folder `apps/web/dist`, production branch `main`.
+   Environment variables (all public, none is a secret): `VITE_SUPABASE_URL` (project URL),
+   `VITE_SUPABASE_ANON_KEY` (anon key), `VITE_API_ORIGIN` (`API`). Add the custom domain `WEB`.
 
 ## 6. Build minutes
 
-This repository is private, so Actions minutes count against the account's allowance, and
-macOS minutes count ten times. On the free plan (2,000 minutes a month) that is roughly 200
-macOS minutes: about 10 to 15 iOS builds, or fewer if Android and analysis jobs use the rest.
-Options when that runs out: GitHub Pro (3,000 minutes), paid minutes, or Codemagic as a second
-macOS worker (not built yet).
+This repository is public (since 31 Oct 2026), so standard GitHub-hosted runners, Linux and
+macOS, are free with no minute cap. If it is made private again, minutes count against the
+account's allowance (2,000 a month on the free plan) and macOS minutes count ten times.
 
 ## 7. Store signing (only for signed release builds)
 
