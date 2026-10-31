@@ -1,0 +1,112 @@
+# macOS build worker for iOS (docs/ARCHITECTURE.md §7). Same contract as g2a-job.yml; the API
+# lets only this workflow claim iOS builds. macOS runners have no separate sandbox user yet: the
+# repository's scripts run with a scrubbed environment only (see the architecture doc).
+name: g2a-ios
+run-name: ios ${{ inputs.job_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: Git2App job id
+        required: true
+        type: string
+      job_kind:
+        description: always build
+        required: true
+        type: choice
+        options: [build]
+      api_origin:
+        description: Git2App API origin (must equal the G2A_API_ORIGIN repository variable)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: macos-26
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      needs_signing: ${{ steps.runner.outputs.needs_signing }}
+    env:
+      JOB_ID: ${{ inputs.job_id }}
+      API_INPUT: ${{ inputs.api_origin }}
+      API: ${{ vars.G2A_API_ORIGIN }}
+    steps:
+      - name: Check inputs
+        run: |
+          [[ "$JOB_ID" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]] || { echo "bad job id"; exit 1; }
+          [[ -n "$API" && "$API_INPUT" == "$API" ]] || { echo "api_origin does not match G2A_API_ORIGIN"; exit 1; }
+
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Xcode
+        run: scripts/worker/select-xcode.sh
+
+      - name: Run job
+        id: runner
+        run: node packages/runner/bin/g2a-runner.ts build --job "$JOB_ID" --api "$API"
+
+      - name: Pack unsigned app
+        if: steps.runner.outputs.needs_signing == 'true'
+        env:
+          HANDOFF: ${{ steps.runner.outputs.handoff }}
+        run: tar -C "$HANDOFF" -cf "$RUNNER_TEMP/handoff.tar" .
+
+      - uses: actions/upload-artifact@v4
+        if: steps.runner.outputs.needs_signing == 'true'
+        with:
+          name: handoff-${{ inputs.job_id }}
+          path: ${{ runner.temp }}/handoff.tar
+          retention-days: 1
+          if-no-files-found: error
+
+  sign:
+    needs: run
+    if: needs.run.outputs.needs_signing == 'true'
+    runs-on: macos-26
+    timeout-minutes: 20
+    environment: g2a-signing
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      JOB_ID: ${{ inputs.job_id }}
+      API: ${{ vars.G2A_API_ORIGIN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Xcode
+        run: scripts/worker/select-xcode.sh
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: handoff-${{ inputs.job_id }}
+          path: ${{ runner.temp }}/in
+
+      - name: Sign
+        run: |
+          mkdir -p "$RUNNER_TEMP/handoff"
+          tar -C "$RUNNER_TEMP/handoff" -xf "$RUNNER_TEMP/in/handoff.tar"
+          node packages/runner/bin/g2a-runner.ts sign --job "$JOB_ID" --api "$API" --handoff "$RUNNER_TEMP/handoff"

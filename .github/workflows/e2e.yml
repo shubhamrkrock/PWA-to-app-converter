@@ -1,0 +1,83 @@
+# End-to-end proof that the pipeline produces real apps: builds the fixture PWA into a debug APK
+# inside the build sandbox, checks the sandbox from inside the build, and keeps the APK for
+# installing on a phone. The iOS simulator build is manual only (macOS minutes cost 10x).
+name: e2e
+
+on:
+  push:
+    branches: [main]
+    paths: ['packages/**', 'scripts/worker/**', 'tests/fixtures/e2e-pwa/**', '.github/workflows/e2e.yml']
+  pull_request:
+    paths: ['packages/**', 'scripts/worker/**', 'tests/fixtures/e2e-pwa/**', '.github/workflows/e2e.yml']
+  workflow_dispatch:
+    inputs:
+      ios:
+        description: Also build the iOS simulator app (macOS minutes)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: scripts/worker/setup-android.sh
+      - run: scripts/worker/setup-linux.sh
+      - name: A secret the build must not read (the fixture's probe looks for it)
+        run: |
+          mkdir -p /tmp/g2a-canary && chmod 700 /tmp/g2a-canary
+          echo "canary-$RANDOM" > /tmp/g2a-canary/secret.txt && chmod 600 /tmp/g2a-canary/secret.txt
+      - name: Build the fixture PWA into a debug APK
+        run: |
+          node packages/runner/bin/g2a-runner.ts local \
+            --source tests/fixtures/e2e-pwa --platform android \
+            --config tests/fixtures/e2e-pwa/app-config.json --out "$RUNNER_TEMP/out"
+      - name: Check the sandbox from inside the APK
+        run: |
+          APK="$(ls "$RUNNER_TEMP"/out/artifacts/apk-* | head -1)"
+          unzip -p "$APK" assets/public/probe.json | node scripts/e2e/check-probe.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-android
+          path: ${{ runner.temp }}/out
+          retention-days: 7
+
+  ios:
+    if: github.event_name == 'workflow_dispatch' && inputs.ios
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: scripts/worker/select-xcode.sh
+      - name: Build the fixture PWA into an iOS simulator app
+        run: |
+          node packages/runner/bin/g2a-runner.ts local \
+            --source tests/fixtures/e2e-pwa --platform ios \
+            --config tests/fixtures/e2e-pwa/app-config.json --out "$RUNNER_TEMP/out"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-ios
+          path: ${{ runner.temp }}/out
+          retention-days: 7
