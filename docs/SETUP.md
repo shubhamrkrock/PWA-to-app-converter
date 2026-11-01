@@ -1,5 +1,9 @@
 # Git2App setup: the steps only the owner can do
 
+The phone-friendly version, with Open buttons, Copy buttons and screenshot slots, is
+`docs/setup/git2app-setup.html` (published at https://claude.ai/artifact/RyyqfUC6nGzdYqeMBKLUKY).
+Keep the two in step.
+
 Everything else is code in this repository. Each step says what to create, the exact settings,
 and where the value goes. Secret values never go in a file, a chat or a commit: they go
 straight into the place named (`wrangler secret put`, GitHub settings, Supabase settings).
@@ -62,7 +66,10 @@ and convert its private key as in step 1.
 2. Settings > Environments > New environment **`g2a-signing`**. Deployment branches: "Selected
    branches", add `main`. No secrets in it: the API releases keys only to jobs in this
    environment, after checking their GitHub identity token.
-3. Keep the repository **private**: build logs and artifacts of users' apps live here.
+3. The repository is **public** since 31 Oct 2026 (free build minutes). Build logs, and for one day
+   a release build's unsigned handoff, are then readable by anyone. Fine for the owner's own
+   apps whose web code is public anyway; before Git2App builds other people's private repos,
+   move the workers to a private repository (paid minutes) or another build service.
 4. Settings > Actions > General > Workflow permissions: "Read repository contents".
 
 ## 4. Supabase

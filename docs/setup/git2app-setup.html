@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Set up Git2App</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;600;700&family=Sora:wght@700;800&display=swap">
+<style>
+/* Shubham's guide format (1 Nov 2026): step cards, an Open link per page, one Copy button per value, screenshot slots. */
+:root{
+  --bg:#FFFFFF; --fg:#101114; --muted:#50555F; --line:#E3E5EA; --card:#F5F6F8;
+  --accent:#2F4C7E; --accent-soft:#E6ECF6; --ok:#1F7A4D; --warn:#8A5A00; --warn-bg:#FFF3DA;
+  --head:"Sora",system-ui,sans-serif; --body:"Onest",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0B0D12; --fg:#F2F4F8; --muted:#A3A9B6; --line:#262A33; --card:#151820;
+  --accent:#A8BEE3; --accent-soft:#1C2433; --ok:#6FD3A0; --warn:#FFD48A; --warn-bg:#2E2410; color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 var(--body);
+  padding:calc(24px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(56px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+main{max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+h1,h2{font-family:var(--head);text-wrap:balance;margin:0;letter-spacing:-.01em}
+h1{font-size:1.75rem;line-height:1.15}
+h2{font-size:1.2rem}
+p{margin:0}
+a{color:var(--accent)}
+.muted{color:var(--muted)}
+.eyebrow{font-size:.78rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+header,section{display:flex;flex-direction:column;gap:12px}
+.letter{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:8px;background:var(--accent);color:var(--bg);font:800 .9rem var(--head);margin-right:8px;vertical-align:2px}
+ol.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px;counter-reset:s}
+ol.steps>li{counter-increment:s;background:var(--card);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+ol.steps>li>p:first-child::before{content:counter(s);display:inline-grid;place-items:center;width:24px;height:24px;margin-right:10px;border-radius:50%;
+  background:var(--accent);color:var(--bg);font:700 .8rem var(--head);vertical-align:1px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.val{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;min-width:0}
+.val span{font-size:.85rem;color:var(--muted);flex-basis:100%}
+a.btn,button.copy,button.make{font:600 .92rem var(--body);border-radius:999px;padding:8px 15px;cursor:pointer;text-decoration:none;border:1px solid var(--accent);white-space:nowrap}
+a.btn{background:var(--accent);color:var(--bg)}
+button.copy,button.make{background:transparent;color:var(--accent)}
+a.btn:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+code{font:.88em ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--accent-soft);padding:1px 6px;border-radius:6px;overflow-wrap:anywhere}
+pre{margin:0;font:.8rem/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--accent-soft);padding:12px;border-radius:10px;overflow-x:auto;white-space:pre}
+figure{margin:0;display:flex;flex-direction:column;gap:6px}
+figure img{max-width:100%;border-radius:10px;border:1px solid var(--line);display:block;height:auto}
+figcaption{font-size:.85rem;color:var(--muted)}
+.slot{border:1.5px dashed var(--line);border-radius:10px;padding:10px 12px;font-size:.85rem;color:var(--muted)}
+.note{background:var(--warn-bg);color:var(--fg);border-radius:12px;padding:12px 14px}
+.note b{color:var(--warn)}
+.claude{background:var(--accent-soft);border-radius:12px;padding:12px 14px}
+.claude b{color:var(--accent)}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:10px;background:var(--card);border-radius:14px;padding:14px 16px}
+.form label{display:flex;flex-direction:column;gap:4px;font-size:.82rem;font-weight:600;color:var(--muted);min-width:0}
+.form input{font:15px var(--body);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 10px;min-width:0}
+.flow{display:flex;flex-direction:column;gap:10px}
+.flow .box{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0;overflow-wrap:anywhere}
+.flow .box span{font-size:.88rem;color:var(--muted)}
+.flow .soft{background:var(--accent-soft)}
+.flow .warnbox{background:var(--warn-bg)}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.lane{display:flex;flex-direction:column;gap:6px;min-width:0}
+.arrow{font-size:.82rem;color:var(--muted);font-weight:600}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+.tablewrap{overflow-x:auto}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:700;color:var(--muted);font-size:.8rem;text-transform:uppercase;letter-spacing:.04em}
+nav.toc{display:flex;flex-wrap:wrap;gap:6px}
+nav.toc a{font-size:.85rem;font-weight:600;color:var(--accent);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:4px 10px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);
+  padding:8px 16px;border-radius:999px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <p class="eyebrow">Setup guide · Git2App · 1 Nov 2026</p>
+  <h1>Set up Git2App so it can turn Xpenstack into store apps</h1>
+  <p class="muted">The code is done. These are the accounts and settings only you can create. Do them in order; about 90 minutes in all, most of it on your Windows laptop. Steps marked "Claude can do this" I do as soon as you say go.</p>
+</header>
+
+<section>
+  <h2>Your values</h2>
+  <p class="muted">Type yours once. Every Copy button and link below uses them. The free Cloudflare addresses work fine; a domain of your own can come later.</p>
+  <div class="form">
+    <label for="f-cf">Cloudflare workers.dev name<input id="f-cf" data-k="cf" value="shubhamrkrock" autocomplete="off" spellcheck="false"></label>
+    <label for="f-web">Website address<input id="f-web" data-k="web" value="https://git2app.pages.dev" autocomplete="off" spellcheck="false"></label>
+    <label for="f-ref">Supabase project ref<input id="f-ref" data-k="ref" value="abcdefghijklmnop" autocomplete="off" spellcheck="false"></label>
+    <label for="f-slug">GitHub App name (lower case)<input id="f-slug" data-k="slug" value="git2app-shubham" autocomplete="off" spellcheck="false"></label>
+    <label for="f-email">Your sign-in email<input id="f-email" data-k="email" value="shubhamrkrock@gmail.com" autocomplete="off" spellcheck="false"></label>
+  </div>
+  <p class="muted">Your API address is then <code class="t-api"></code>.</p>
+</section>
+
+<section>
+  <h2>The whole flow</h2>
+  <div class="flow" role="img" aria-label="You use the website on Cloudflare Pages. It signs you in with Supabase and talks to the API on Cloudflare Workers. The API reads your code through the GitHub App and starts builds on GitHub Actions, Linux for Android and a Mac for iPhone. Finished apps are stored in Cloudflare R2 and you download them from the website.">
+    <div class="box"><b>Website</b><span class="t-web"></span><span>Cloudflare Pages. You sign in and tap Build.</span></div>
+    <div class="split">
+      <div class="lane"><p class="arrow">↓ sign-in</p><div class="box soft"><b>Supabase</b><span>Accounts, apps list, build history, locked signing keys</span></div></div>
+      <div class="lane"><p class="arrow">↓ every action</p><div class="box soft"><b>API</b><span class="t-api"></span><span>Cloudflare Worker</span></div></div>
+    </div>
+    <div class="split">
+      <div class="lane"><p class="arrow">↓ reads code</p><div class="box"><b>GitHub App</b><span>Read-only, only the repos you pick</span></div></div>
+      <div class="lane"><p class="arrow">↓ starts builds</p><div class="box"><b>GitHub Actions</b><span>Fresh Linux (Android) or Mac (iPhone) per build</span></div></div>
+    </div>
+    <div class="box"><b>Cloudflare R2</b><span>Stores the finished APK, AAB and IPA for 30 days</span></div>
+  </div>
+  <nav class="toc" aria-label="Sections">
+    <a href="#a">A Before</a><a href="#b">B GitHub App</a><a href="#c">C Workers App</a><a href="#d">D Repo</a><a href="#e">E Supabase</a><a href="#f">F Sign-in</a><a href="#g">G API</a><a href="#h">H Website</a><a href="#i">I Check</a><a href="#j">J Store keys</a><a href="#m">Mistakes</a>
+  </nav>
+</section>
+
+<section id="a">
+  <h2><span class="letter">A</span>Before you start</h2>
+  <p class="muted">Once, about 10 minutes, on the laptop.</p>
+  <ol class="steps">
+    <li><p>Turn on two-step sign-in for GitHub, Cloudflare and Supabase. Whoever gets into one of them can change what Git2App builds.</p>
+      <div class="row"><a class="btn" href="https://github.com/settings/security" target="_blank" rel="noopener">Open GitHub security</a><a class="btn" href="https://dash.cloudflare.com/profile/authentication" target="_blank" rel="noopener">Open Cloudflare security</a><a class="btn" href="https://supabase.com/dashboard/account/security" target="_blank" rel="noopener">Open Supabase security</a></div></li>
+    <li><p>Open <b>Git Bash</b> (it came with Git for Windows). Every command in this guide runs there. Get the code and its tools:</p>
+      <pre id="cmd-clone">git clone https://github.com/shubhamrkrock/PWA-to-app-converter.git
+cd PWA-to-app-converter
+npm ci</pre>
+      <div class="row"><button class="copy" data-from="cmd-clone">Copy commands</button></div>
+      <p class="muted">No Git Bash? Install Git for Windows, then come back.</p>
+      <div class="row"><a class="btn" href="https://git-scm.com/download/win" target="_blank" rel="noopener">Open Git for Windows</a></div></li>
+    <li><p>Open your password manager and make a new note called "Git2App". The secrets below go there and then straight into the place named. Never into a chat, a file in the repo or an email.</p></li>
+  </ol>
+</section>
+
+<section id="b">
+  <h2><span class="letter">B</span>Create the GitHub App people install</h2>
+  <p class="muted">About 15 minutes. This is how Git2App reads a repo, read-only.</p>
+  <ol class="steps">
+    <li><p>Open the new GitHub App form.</p>
+      <div class="row"><a class="btn" href="https://github.com/settings/apps/new" target="_blank" rel="noopener">Open New GitHub App</a></div></li>
+    <li><p>Fill in these boxes, one Copy at a time.</p>
+      <div class="val"><span>GitHub App name</span><code class="t-slug"></code><button class="copy" data-v="{slug}">Copy</button></div>
+      <div class="val"><span>Homepage URL</span><code class="t-web"></code><button class="copy" data-v="{web}">Copy</button></div>
+      <div class="val"><span>Callback URL</span><code class="t-cb"></code><button class="copy" data-v="{api}/api/v1/github/callback">Copy</button></div>
+      <div class="val"><span>Request user authorization (OAuth) during installation</span><code>tick it</code></div>
+      <div class="val"><span>Webhook URL</span><code class="t-hook"></code><button class="copy" data-v="{api}/api/v1/github/webhooks">Copy</button></div>
+      <div class="val"><span>Webhook secret: make one here, save it in your note, then paste it</span><code id="s-webhook">not made yet</code><button class="make" data-make="s-webhook" data-len="32">Make one</button><button class="copy" data-from="s-webhook">Copy</button></div>
+      <p class="slot">Screenshot slot: the top of the form, filled in.</p></li>
+    <li><p>Scroll to <b>Permissions</b> › <b>Repository permissions</b>. Set <b>Contents</b> to <b>Read-only</b>. Leave everything else on No access (Metadata turns to Read-only by itself).</p>
+      <p class="slot">Screenshot slot: Contents Read-only.</p></li>
+    <li><p>Under <b>Subscribe to events</b> tick <b>Push</b>. Under <b>Where can this GitHub App be installed?</b> choose <b>Only on this account</b>. Tap <b>Create GitHub App</b>.</p></li>
+    <li><p>On the page that opens, copy the <b>App ID</b> and <b>Client ID</b> into your note. Tap <b>Generate a new client secret</b> and copy it into your note too (GitHub shows it once).</p>
+      <p class="slot">Screenshot slot: App ID and Client ID.</p></li>
+    <li><p>Scroll to <b>Private keys</b> › <b>Generate a private key</b>. A <code>.pem</code> file downloads. In Git Bash, in your Downloads folder, change it to the format the API reads:</p>
+      <pre id="cmd-pk1">cd ~/Downloads
+openssl pkcs8 -topk8 -nocrypt -in {slug}.*.private-key.pem -out git2app-pkcs8.pem</pre>
+      <div class="row"><button class="copy" data-from="cmd-pk1">Copy commands</button></div>
+      <p class="muted">Keep <code>git2app-pkcs8.pem</code> until step G, then delete both .pem files.</p></li>
+  </ol>
+</section>
+
+<section id="c">
+  <h2><span class="letter">C</span>Create the Workers App (only for this repo)</h2>
+  <p class="muted">About 10 minutes. It lets the API start and stop builds here, so people never give Git2App access to their own Actions.</p>
+  <ol class="steps">
+    <li><p>Open the form again and fill in:</p>
+      <div class="row"><a class="btn" href="https://github.com/settings/apps/new" target="_blank" rel="noopener">Open New GitHub App</a></div>
+      <div class="val"><span>GitHub App name</span><code class="t-slugw"></code><button class="copy" data-v="{slug}-workers">Copy</button></div>
+      <div class="val"><span>Homepage URL</span><code>https://github.com/shubhamrkrock/PWA-to-app-converter</code><button class="copy" data-v="https://github.com/shubhamrkrock/PWA-to-app-converter">Copy</button></div>
+      <div class="val"><span>Webhook</span><code>untick Active</code></div>
+      <div class="val"><span>Repository permissions</span><code>Actions: Read and write</code></div>
+      <div class="val"><span>Where can it be installed</span><code>Only on this account</code></div></li>
+    <li><p>Tap <b>Create GitHub App</b>. Copy its <b>App ID</b> into your note. Generate a private key and convert it the same way:</p>
+      <pre id="cmd-pk2">cd ~/Downloads
+openssl pkcs8 -topk8 -nocrypt -in {slug}-workers.*.private-key.pem -out workers-pkcs8.pem</pre>
+      <div class="row"><button class="copy" data-from="cmd-pk2">Copy commands</button></div></li>
+    <li><p>In the left menu tap <b>Install App</b> › <b>Install</b> › <b>Only select repositories</b> › <code>PWA-to-app-converter</code> › <b>Install</b>. The address of the page you land on ends in a number: that is the <b>installation id</b>. Copy it into your note.</p>
+      <p class="slot">Screenshot slot: the address bar ending in the installation id.</p></li>
+  </ol>
+</section>
+
+<section id="d">
+  <h2><span class="letter">D</span>Two settings in this repo</h2>
+  <p class="muted">About 5 minutes.</p>
+  <ol class="steps">
+    <li><p>Add the variable that tells builds which API they may talk to. Tap <b>New repository variable</b>.</p>
+      <div class="row"><a class="btn" href="https://github.com/shubhamrkrock/PWA-to-app-converter/settings/variables/actions" target="_blank" rel="noopener">Open Actions variables</a></div>
+      <div class="val"><span>Name</span><code>G2A_API_ORIGIN</code><button class="copy" data-v="G2A_API_ORIGIN">Copy</button></div>
+      <div class="val"><span>Value (no slash at the end)</span><code class="t-api"></code><button class="copy" data-v="{api}">Copy</button></div></li>
+    <li><p>Add the signing environment. Tap <b>New environment</b>, name it, then under <b>Deployment branches and tags</b> choose <b>Selected branches and tags</b> and add <code>main</code>. Add no secrets to it.</p>
+      <div class="row"><a class="btn" href="https://github.com/shubhamrkrock/PWA-to-app-converter/settings/environments" target="_blank" rel="noopener">Open Environments</a></div>
+      <div class="val"><span>Environment name</span><code>g2a-signing</code><button class="copy" data-v="g2a-signing">Copy</button></div>
+      <p class="slot">Screenshot slot: g2a-signing with the main rule.</p></li>
+  </ol>
+  <p class="note"><b>Public repo, so read this (31 Oct):</b> the repo is public for free build minutes. That means anyone can read build logs, and for one day download a release build's unsigned app. For your own Xpenstack that is fine: its web code is public on its website anyway. Before other people use Git2App, builds must move to a private repo (paid minutes) or another build service.</p>
+</section>
+
+<section id="e">
+  <h2><span class="letter">E</span>Supabase: the accounts database</h2>
+  <p class="muted">About 10 minutes. Separate from Xpenstack's project.</p>
+  <p class="claude"><b>Claude can do this.</b> Say "create the Supabase project" and I create it, run the three database files and check them. You then only do steps 3 and 4.</p>
+  <ol class="steps">
+    <li><p>Create a new project, name it <code>git2app</code>, and pick the region nearest you (Frankfurt for Europe). Save the database password in your note.</p>
+      <div class="row"><a class="btn" href="https://supabase.com/dashboard/new" target="_blank" rel="noopener">Open New project</a></div>
+      <p class="muted">The project ref is the code in its address, after <code>/project/</code>. Type it into Your values at the top.</p></li>
+    <li><p>Open the SQL editor and run the three database files in order, one at a time: open each, copy all, paste, <b>Run</b>.</p>
+      <div class="row"><a class="btn" data-href="https://supabase.com/dashboard/project/{ref}/sql/new" href="#" target="_blank" rel="noopener">Open SQL editor</a></div>
+      <div class="row"><a class="btn" href="https://github.com/shubhamrkrock/PWA-to-app-converter/blob/main/supabase/migrations/0001_init.sql" target="_blank" rel="noopener">File 1</a><a class="btn" href="https://github.com/shubhamrkrock/PWA-to-app-converter/blob/main/supabase/migrations/0002_analysis_jobs.sql" target="_blank" rel="noopener">File 2</a><a class="btn" href="https://github.com/shubhamrkrock/PWA-to-app-converter/blob/main/supabase/migrations/0003_simulator_artifact.sql" target="_blank" rel="noopener">File 3</a></div></li>
+    <li><p>Turn on the newer kind of sign-in keys: <b>JWT Keys</b> › <b>Migrate</b> or <b>Create standby key</b>, then <b>Rotate keys</b> so the ES256 key is in use. The API refuses the old shared-secret kind.</p>
+      <div class="row"><a class="btn" data-href="https://supabase.com/dashboard/project/{ref}/settings/jwt" href="#" target="_blank" rel="noopener">Open JWT keys</a></div>
+      <p class="slot">Screenshot slot: Current key ECC (P-256).</p></li>
+    <li><p>Set where sign-in sends people back to.</p>
+      <div class="row"><a class="btn" data-href="https://supabase.com/dashboard/project/{ref}/auth/url-configuration" href="#" target="_blank" rel="noopener">Open URL configuration</a></div>
+      <div class="val"><span>Site URL</span><code class="t-web"></code><button class="copy" data-v="{web}">Copy</button></div>
+      <div class="val"><span>Redirect URLs › Add URL</span><code class="t-webp"></code><button class="copy" data-v="{web}/projects">Copy</button></div></li>
+    <li><p>Copy three values into your note: the <b>Project URL</b>, the <b>anon (public) key</b> and the <b>service_role key</b>. The service_role key is a full-access secret: it only ever goes into step G.</p>
+      <div class="row"><a class="btn" data-href="https://supabase.com/dashboard/project/{ref}/settings/api-keys" href="#" target="_blank" rel="noopener">Open API keys</a></div></li>
+  </ol>
+</section>
+
+<section id="f">
+  <h2><span class="letter">F</span>Sign in with GitHub and Google</h2>
+  <p class="muted">About 20 minutes. Email links work without this; skip it if you like and come back.</p>
+  <ol class="steps">
+    <li><p><b>GitHub sign-in.</b> Create an OAuth app (a different thing from the GitHub App in B).</p>
+      <div class="row"><a class="btn" href="https://github.com/settings/applications/new" target="_blank" rel="noopener">Open New OAuth app</a></div>
+      <div class="val"><span>Application name</span><code>Git2App</code><button class="copy" data-v="Git2App">Copy</button></div>
+      <div class="val"><span>Homepage URL</span><code class="t-web"></code><button class="copy" data-v="{web}">Copy</button></div>
+      <div class="val"><span>Authorization callback URL</span><code class="t-sbcb"></code><button class="copy" data-v="https://{ref}.supabase.co/auth/v1/callback">Copy</button></div>
+      <p class="muted">Tap <b>Register application</b>, then <b>Generate a new client secret</b>.</p></li>
+    <li><p>Paste that Client ID and secret into Supabase's GitHub provider and switch it on.</p>
+      <div class="row"><a class="btn" data-href="https://supabase.com/dashboard/project/{ref}/auth/providers" href="#" target="_blank" rel="noopener">Open Sign In providers</a></div></li>
+    <li><p><b>Google sign-in.</b> In Google Cloud, set up the consent screen (External, app name Git2App, your email), then create an OAuth client of type <b>Web application</b>.</p>
+      <div class="row"><a class="btn" href="https://console.cloud.google.com/auth/clients/create" target="_blank" rel="noopener">Open Google OAuth client</a></div>
+      <div class="val"><span>Authorized JavaScript origins</span><code class="t-web"></code><button class="copy" data-v="{web}">Copy</button></div>
+      <div class="val"><span>Authorized redirect URIs</span><code class="t-sbcb"></code><button class="copy" data-v="https://{ref}.supabase.co/auth/v1/callback">Copy</button></div>
+      <p class="slot">Screenshot slot: the Google client form, filled in.</p></li>
+    <li><p>Paste the Google Client ID and secret into Supabase's Google provider and switch it on.</p>
+      <div class="row"><a class="btn" data-href="https://supabase.com/dashboard/project/{ref}/auth/providers" href="#" target="_blank" rel="noopener">Open Sign In providers</a></div></li>
+  </ol>
+</section>
+
+<section id="g">
+  <h2><span class="letter">G</span>The API on Cloudflare</h2>
+  <p class="muted">About 15 minutes, in Git Bash.</p>
+  <p class="claude"><b>Claude does the file part.</b> Send me your three addresses (website, API, GitHub App name) and I put them in the API's settings file, so the next pull has them.</p>
+  <ol class="steps">
+    <li><p>Get the latest code, sign Cloudflare in, and make the storage and the job queue.</p>
+      <pre id="cmd-cf">cd ~/PWA-to-app-converter && git pull
+cd apps/api
+npx wrangler login
+npx wrangler r2 bucket create git2app-artifacts
+npx wrangler queues create git2app-dispatch
+npx wrangler queues create git2app-dispatch-dlq</pre>
+      <div class="row"><button class="copy" data-from="cmd-cf">Copy commands</button></div></li>
+    <li><p>Store each secret. Run one line, paste the value from your note when it asks, press Enter. Two of them are new random values: make each here.</p>
+      <div class="val"><span>State secret</span><code id="s-state">not made yet</code><button class="make" data-make="s-state" data-len="32">Make one</button><button class="copy" data-from="s-state">Copy</button></div>
+      <div class="val"><span>Ticket secret</span><code id="s-ticket">not made yet</code><button class="make" data-make="s-ticket" data-len="32">Make one</button><button class="copy" data-from="s-ticket">Copy</button></div>
+      <div class="val"><span>Signing key master key: also keep it in your note forever. Lose it and stored signing keys can't be opened.</span><code id="s-master">not made yet</code><button class="make" data-make="s-master" data-len="32">Make one</button><button class="copy" data-from="s-master">Copy</button></div>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Command</th><th>Paste</th></tr></thead>
+        <tbody>
+          <tr><td><code>npx wrangler secret put SUPABASE_URL</code> <button class="copy" data-v="npx wrangler secret put SUPABASE_URL">Copy</button></td><td>Supabase Project URL</td></tr>
+          <tr><td><code>npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY</code> <button class="copy" data-v="npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY">Copy</button></td><td>service_role key</td></tr>
+          <tr><td><code>npx wrangler secret put GITHUB_APP_ID</code> <button class="copy" data-v="npx wrangler secret put GITHUB_APP_ID">Copy</button></td><td>App ID (B)</td></tr>
+          <tr><td><code>npx wrangler secret put GITHUB_CLIENT_ID</code> <button class="copy" data-v="npx wrangler secret put GITHUB_CLIENT_ID">Copy</button></td><td>Client ID (B)</td></tr>
+          <tr><td><code>npx wrangler secret put GITHUB_CLIENT_SECRET</code> <button class="copy" data-v="npx wrangler secret put GITHUB_CLIENT_SECRET">Copy</button></td><td>Client secret (B)</td></tr>
+          <tr><td><code>npx wrangler secret put GITHUB_WEBHOOK_SECRET</code> <button class="copy" data-v="npx wrangler secret put GITHUB_WEBHOOK_SECRET">Copy</button></td><td>Webhook secret (B)</td></tr>
+          <tr><td><code>npx wrangler secret put WORKERS_APP_ID</code> <button class="copy" data-v="npx wrangler secret put WORKERS_APP_ID">Copy</button></td><td>Workers App ID (C)</td></tr>
+          <tr><td><code>npx wrangler secret put WORKERS_INSTALLATION_ID</code> <button class="copy" data-v="npx wrangler secret put WORKERS_INSTALLATION_ID">Copy</button></td><td>Installation id (C)</td></tr>
+          <tr><td><code>npx wrangler secret put STATE_SECRET</code> <button class="copy" data-v="npx wrangler secret put STATE_SECRET">Copy</button></td><td>State secret (above)</td></tr>
+          <tr><td><code>npx wrangler secret put TICKET_SECRET</code> <button class="copy" data-v="npx wrangler secret put TICKET_SECRET">Copy</button></td><td>Ticket secret (above)</td></tr>
+          <tr><td><code>npx wrangler secret put CREDENTIALS_MASTER_KEY</code> <button class="copy" data-v="npx wrangler secret put CREDENTIALS_MASTER_KEY">Copy</button></td><td>Master key (above)</td></tr>
+        </tbody>
+      </table></div></li>
+    <li><p>The two private keys are files, so they go in by pipe instead of pasting. Then deploy, and delete the key files.</p>
+      <pre id="cmd-keys">npx wrangler secret put GITHUB_APP_PRIVATE_KEY &lt; ~/Downloads/git2app-pkcs8.pem
+npx wrangler secret put WORKERS_APP_PRIVATE_KEY &lt; ~/Downloads/workers-pkcs8.pem
+npx wrangler deploy
+rm ~/Downloads/*.pem</pre>
+      <div class="row"><button class="copy" data-from="cmd-keys">Copy commands</button></div>
+      <p class="muted">The last line prints the API address. It should match <code class="t-api"></code>.</p></li>
+  </ol>
+</section>
+
+<section id="h">
+  <h2><span class="letter">H</span>The website on Cloudflare Pages</h2>
+  <p class="muted">About 10 minutes.</p>
+  <ol class="steps">
+    <li><p>Open Workers &amp; Pages › <b>Create</b> › <b>Pages</b> › <b>Import an existing Git repository</b> and pick <code>PWA-to-app-converter</code>.</p>
+      <div class="row"><a class="btn" href="https://dash.cloudflare.com/?to=/:account/workers-and-pages/create/pages" target="_blank" rel="noopener">Open Create Pages</a></div></li>
+    <li><p>Fill in the build settings.</p>
+      <div class="val"><span>Project name</span><code>git2app</code><button class="copy" data-v="git2app">Copy</button></div>
+      <div class="val"><span>Production branch</span><code>main</code><button class="copy" data-v="main">Copy</button></div>
+      <div class="val"><span>Framework preset</span><code>None</code></div>
+      <div class="val"><span>Build command</span><code>npm ci &amp;&amp; npm run build:web</code><button class="copy" data-v="npm ci && npm run build:web">Copy</button></div>
+      <div class="val"><span>Build output directory</span><code>apps/web/dist</code><button class="copy" data-v="apps/web/dist">Copy</button></div></li>
+    <li><p>Open <b>Environment variables</b> and add three. None of them is a secret.</p>
+      <div class="val"><span>VITE_SUPABASE_URL</span><code class="t-sburl"></code><button class="copy" data-v="VITE_SUPABASE_URL">Copy name</button><button class="copy" data-v="https://{ref}.supabase.co">Copy value</button></div>
+      <div class="val"><span>VITE_SUPABASE_ANON_KEY</span><code>the anon key from E</code><button class="copy" data-v="VITE_SUPABASE_ANON_KEY">Copy name</button></div>
+      <div class="val"><span>VITE_API_ORIGIN</span><code class="t-api"></code><button class="copy" data-v="VITE_API_ORIGIN">Copy name</button><button class="copy" data-v="{api}">Copy value</button></div>
+      <p class="slot">Screenshot slot: the three variables.</p></li>
+    <li><p>Tap <b>Save and Deploy</b>. When it says Success, open the site.</p>
+      <div class="row"><a class="btn" data-href="{web}" href="#" target="_blank" rel="noopener">Open the website</a></div></li>
+  </ol>
+</section>
+
+<section id="i">
+  <h2><span class="letter">I</span>Check it works</h2>
+  <ol class="steps">
+    <li><p>Sign in on the website. Go to <b>GitHub</b> › <b>Connect GitHub</b> and install your GitHub App on <code>Xpenstack</code> only.</p></li>
+    <li><p>Go to <b>Apps</b> › <b>New app</b> › Xpenstack › branch <code>dev</code> › <b>Add and check it</b>. In a few minutes the check report shows Android and iPhone verdicts.</p></li>
+    <li><p>Fill in <b>Settings</b>, then <b>Build</b> › Android › Testing on my phone. When it says Ready, download the APK on your Android phone.</p></li>
+    <li><p>Something red? Copy the message and send it to me.</p></li>
+  </ol>
+</section>
+
+<section id="j">
+  <h2><span class="letter">J</span>Store keys (only for the Play Store and App Store)</h2>
+  <p class="muted">Test builds need none of this. Do it when you are ready to publish.</p>
+  <ol class="steps">
+    <li><p>Turn on the key vault for your account. Sign in to the website once first, then run this in the SQL editor:</p>
+      <div class="row"><a class="btn" data-href="https://supabase.com/dashboard/project/{ref}/sql/new" href="#" target="_blank" rel="noopener">Open SQL editor</a></div>
+      <pre id="sql-pro"></pre>
+      <div class="row"><button class="copy" data-from="sql-pro">Copy SQL</button></div></li>
+    <li><p><b>Android:</b> make an upload key once, in Git Bash. Save both passwords in your note. Then upload it on the website under <b>Keys</b> › <b>Add Android key</b>.</p>
+      <pre id="cmd-ks">keytool -genkeypair -v -keystore upload.jks -alias upload -keyalg RSA -keysize 4096 -validity 10000</pre>
+      <div class="row"><button class="copy" data-from="cmd-ks">Copy command</button></div>
+      <p class="muted">keytool comes with Java. No Java? Ask me and I'll make the key in a private build instead.</p></li>
+    <li><p><b>iPhone:</b> the Apple certificate (.p12), App Store profile and Team ID. Xpenstack's own guides walk through the Apple account; upload the three under <b>Keys</b> › <b>Add Apple certificate</b>.</p>
+      <div class="row"><a class="btn" href="https://github.com/shubhamrkrock/Xpenstack/blob/dev/docs/setup/app-store-connect.html" target="_blank" rel="noopener">Open the App Store Connect guide</a></div></li>
+  </ol>
+</section>
+
+<section id="m">
+  <h2>Mistakes we hit</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>What happened</th><th>Fix</th></tr></thead>
+    <tbody>
+      <tr><td>Checks never started; jobs showed no runner (31 Oct)</td><td>Private repo had used its free minutes. Made the repo public, so builds are free</td></tr>
+      <tr><td>The iPhone test showed "skipped"</td><td>It only runs when started by hand with "ios" ticked, by design</td></tr>
+      <tr><td>Bare addresses in replies weren't tappable</td><td>Every link is now a button or a full link</td></tr>
+    </tbody>
+  </table></div>
+  <p class="muted">The same steps in plain text: <a href="https://github.com/shubhamrkrock/PWA-to-app-converter/blob/main/docs/SETUP.md" target="_blank" rel="noopener">SETUP.md</a>. Dashed slots are the screenshots still to collect: send them and they go in their step.</p>
+</section>
+</main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const keys = ['cf','web','ref','slug','email'];
+const vals = {};
+const derived = () => {
+  vals.api = 'https://git2app-api.' + vals.cf + '.workers.dev';
+  vals.web = vals.web.replace(/\/+$/, '');
+};
+const fill = (s) => s.replace(/\{(\w+)\}/g, (m, k) => (k in vals ? vals[k] : m));
+const SHOW = { api:'{api}', web:'{web}', slug:'{slug}', slugw:'{slug}-workers', cb:'{api}/api/v1/github/callback', hook:'{api}/api/v1/github/webhooks', webp:'{web}/projects', sbcb:'https://{ref}.supabase.co/auth/v1/callback', sburl:'https://{ref}.supabase.co' };
+const PRE = {};
+function load() {
+  for (const k of keys) {
+    const el = document.querySelector(`[data-k="${k}"]`);
+    let v = null;
+    try { v = localStorage.getItem('g2a-guide-' + k); } catch (e) {}
+    if (v) el.value = v;
+    vals[k] = el.value.trim() || el.defaultValue;
+  }
+  document.querySelectorAll('pre[id^="cmd-"]').forEach((p) => { PRE[p.id] = p.textContent; });
+  derived();
+}
+function render() {
+  for (const [cls, tpl] of Object.entries(SHOW)) document.querySelectorAll('.t-' + cls).forEach((n) => { n.textContent = fill(tpl); });
+  document.querySelectorAll('a[data-href]').forEach((a) => { a.href = fill(a.dataset.href); });
+  for (const [id, t] of Object.entries(PRE)) document.getElementById(id).textContent = fill(t);
+  document.getElementById('sql-pro').textContent = fill("update public.profiles set subscription_plan = 'pro'\nwhere id = (select id from auth.users where email = '{email}');");
+}
+document.querySelectorAll('[data-k]').forEach((el) => el.addEventListener('input', () => {
+  vals[el.dataset.k] = el.value.trim() || el.defaultValue;
+  try { localStorage.setItem('g2a-guide-' + el.dataset.k, el.value.trim()); } catch (e) {}
+  derived(); render();
+}));
+const toast = document.getElementById('toast');
+let timer;
+function say(t) { toast.textContent = t; toast.classList.add('on'); clearTimeout(timer); timer = setTimeout(() => toast.classList.remove('on'), 1400); }
+function randomSecret(n) {
+  const b = new Uint8Array(n); crypto.getRandomValues(b);
+  return btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+document.addEventListener('click', (e) => {
+  const m = e.target.closest('button.make');
+  if (m) { document.getElementById(m.dataset.make).textContent = randomSecret(Number(m.dataset.len)); say('Made. Copy it into your note now; it is not saved here.'); return; }
+  const b = e.target.closest('button.copy');
+  if (!b) return;
+  const text = b.dataset.from ? document.getElementById(b.dataset.from).textContent : fill(b.dataset.v);
+  if (text === 'not made yet') { say('Tap Make one first'); return; }
+  const done = () => { const old = b.textContent; b.textContent = 'Copied'; say('Copied: ' + (text.length > 40 ? text.slice(0, 40) + '…' : text)); setTimeout(() => { b.textContent = old; }, 1400); };
+  const fallback = () => {
+    const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (err) { say('Select the text and copy it by hand'); }
+    ta.remove();
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+});
+load(); render();
+</script>
+</body></html>
