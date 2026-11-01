@@ -209,7 +209,9 @@ digest yields the same artifact (modulo signing timestamps).
 ## 9. Phasing (maps to PRD §20) and what this repo delivers first
 
 - **Phase 1 Foundation** — schema + RLS, Worker API skeleton with ownership checks, GitHub
-  App integration (installation tokens, repo listing), web dashboard shell. *(this PR)*
+  App integration (installation tokens, repo listing). The dashboard (`apps/web`): sign-in,
+  apps list, new app, check report, settings, build with live steps and log, downloads,
+  GitHub connections and signing keys. Logic in `apps/web/src/lib` is tested by `tests/web.test.ts`.
 - **Phase 2 Analysis** — deterministic analyzer + compatibility/strategy engine, tested
   against the twelve PRD §21.1 fixtures **and** against the real Xpenstack repo. *(this PR)*
 - **Phase 3 Android** — Capacitor + Bubblewrap generation, Gradle debug APK and release

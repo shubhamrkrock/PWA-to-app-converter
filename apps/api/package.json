@@ -7,5 +7,10 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy"
   },
-  "dependencies": { "@git2app/shared": "0.1.0" }
+  "dependencies": {
+    "@git2app/shared": "0.1.0"
+  },
+  "devDependencies": {
+    "wrangler": "4.156.0"
+  }
 }
