@@ -289,7 +289,11 @@ export async function makeWorld(): Promise<World> {
         return Response.json({ id: Number(repo[1]), name: 'Xpenstack', full_name: 'shubhamrkrock/Xpenstack', owner: { login: 'shubhamrkrock' }, description: null, default_branch: 'dev', updated_at: '', pushed_at: '', language: 'TypeScript', private: true, html_url: 'https://github.com/shubhamrkrock/Xpenstack' });
       }
       if (/^\/repositories\/\d+\/commits\//.test(p)) return Response.json({ sha: SHA1 });
-      if (/^\/repositories\/\d+\/branches$/.test(p)) return Response.json([{ name: 'dev', commit: { sha: SHA1 } }]);
+      if (/^\/repositories\/\d+\/branches$/.test(p)) {
+        // Like Xpenstack (143 branches): a full first page of 100 without the default branch, then dev.
+        if (url.searchParams.get('page') === '2') return Response.json([{ name: 'dev', commit: { sha: SHA1 } }]);
+        return Response.json(Array.from({ length: 100 }, (_, i) => ({ name: `backup/${String(i).padStart(3, '0')}`, commit: { sha: SHA1 } })));
+      }
       if (/\/actions\/workflows\/.+\/dispatches$/.test(p)) return new Response(null, { status: 204 });
       if (/\/actions\/runs\/.+\/cancel$/.test(p)) return new Response(null, { status: 202 });
     }

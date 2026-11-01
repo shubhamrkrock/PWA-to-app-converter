@@ -103,7 +103,14 @@ export class GithubApp {
 
   async listBranches(installationId: number | string, repositoryId: number): Promise<Array<{ name: string; commit: { sha: string } }>> {
     const token = await this.installationToken(installationId, { repositoryIds: [repositoryId], permissions: { contents: 'read' } });
-    return this.gh(`/repositories/${repositoryId}/branches?per_page=100`, { method: 'GET', token });
+    // GitHub pages branches 100 at a time; a busy repo (Xpenstack has 143) hides its default branch past page 1.
+    const out: Array<{ name: string; commit: { sha: string } }> = [];
+    for (let page = 1; page <= 10; page++) {
+      const batch = await this.gh<Array<{ name: string; commit: { sha: string } }>>(`/repositories/${repositoryId}/branches?per_page=100&page=${page}`, { method: 'GET', token });
+      out.push(...batch);
+      if (batch.length < 100) break;
+    }
+    return out;
   }
 
   async branchHead(installationId: number | string, repositoryId: number, branch: string): Promise<string> {

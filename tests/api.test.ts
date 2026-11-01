@@ -146,6 +146,15 @@ test('repositories: lists repos of connected installations with PRD fields', asy
   assert.deepEqual(Object.keys(r.data[0]).sort(), ['defaultBranch', 'description', 'fullName', 'id', 'installationId', 'language', 'name', 'owner', 'updatedAt', 'url', 'visibility'].sort());
 });
 
+test('branches: lists every branch past the first 100, so the default branch can be picked', async () => {
+  const { w, call } = await setup();
+  await seedAlice(w);
+  const r = await call('GET', '/api/v1/github/repositories/42/branches?installation_id=7', { token: await w.tokenFor(ALICE) });
+  assert.equal(r.status, 200);
+  assert.equal(r.data.length, 101);
+  assert.ok(r.data.some((b: { name: string }) => b.name === 'dev'));
+});
+
 // ------------------------------------------------------------------ projects and configuration
 
 test('projects: free plan allows one project; traversal roots and http origins are refused', async () => {
