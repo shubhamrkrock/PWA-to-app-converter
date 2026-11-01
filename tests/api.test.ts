@@ -116,6 +116,17 @@ test('github callback: installs only when the signed-in user\'s GitHub account c
   assert.match(forged.headers.get('location')!, /failed/);
 });
 
+test('github callback: a refused code says GitHub\'s reason, so a wrong client secret can be told apart', async () => {
+  const { w, call } = await setup();
+  const alice = await w.tokenFor(ALICE);
+  const { data } = await call('GET', '/api/v1/github/install-url', { token: alice });
+  const state = new URL(data.url).searchParams.get('state')!;
+  const r = await call('GET', `/api/v1/github/callback?installation_id=55&code=bad&state=${encodeURIComponent(state)}`);
+  assert.equal(r.status, 400);
+  assert.match(r.data.message, /bad_verification_code/);
+  assert.equal(w.db.tables.github_installations?.length ?? 0, 0);
+});
+
 test('repositories: lists repos of connected installations with PRD fields', async () => {
   const { w, call } = await setup();
   await seedAlice(w);
