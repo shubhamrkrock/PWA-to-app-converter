@@ -116,6 +116,17 @@ test('github callback: installs only when the signed-in user\'s GitHub account c
   assert.match(forged.headers.get('location')!, /failed/);
 });
 
+test('github callback: an unexpected GitHub answer still shows its text and HTTP status', async () => {
+  const { w, call } = await setup();
+  const alice = await w.tokenFor(ALICE);
+  const { data } = await call('GET', '/api/v1/github/install-url', { token: alice });
+  const state = new URL(data.url).searchParams.get('state')!;
+  const r = await call('GET', `/api/v1/github/callback?installation_id=55&code=notfound&state=${encodeURIComponent(state)}`);
+  assert.equal(r.status, 400);
+  assert.match(r.data.message, /Not Found/);
+  assert.match(r.data.message, /HTTP 404/);
+});
+
 test('github callback: a refused code says GitHub\'s reason, so a wrong client secret can be told apart', async () => {
   const { w, call } = await setup();
   const alice = await w.tokenFor(ALICE);
