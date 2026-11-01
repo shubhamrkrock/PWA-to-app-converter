@@ -9,10 +9,10 @@ compatibility_flags = ["nodejs_compat"]
 WORKERS_REPO = "shubhamrkrock/PWA-to-app-converter"
 WORKERS_REF = "main"
 CREDENTIALS_KEY_REF = "master-v1"
-# Set these to your real origins before deploying:
-API_ORIGIN = "https://api.git2app.example"
-WEB_ORIGIN = "https://git2app.example"
-GITHUB_APP_SLUG = "git2app"
+# The owner's addresses (1 Nov 2026). The workers.dev part must match his Cloudflare account name.
+API_ORIGIN = "https://git2app-api.shubhamrkrock.workers.dev"
+WEB_ORIGIN = "https://git2app.pages.dev"
+GITHUB_APP_SLUG = "git2app-shubham"
 
 [[r2_buckets]]
 binding = "ARTIFACTS"
