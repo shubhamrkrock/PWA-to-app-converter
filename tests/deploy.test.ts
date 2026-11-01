@@ -15,3 +15,9 @@ test('the API lives on its own xpenstack.com address, served by a Cloudflare cus
 test('the API answers on one address only (no extra workers.dev copy)', () => {
   assert.match(toml, /^workers_dev = false$/m);
 });
+
+test('values the owner adds in the Cloudflare dashboard survive the next deploy from git', () => {
+  // The four GitHub ids (GITHUB_APP_ID, GITHUB_CLIENT_ID, WORKERS_APP_ID, WORKERS_INSTALLATION_ID)
+  // were added as plain dashboard variables on 1 Nov 2026; without keep_vars a deploy deletes them.
+  assert.match(toml, /^keep_vars = true$/m);
+});

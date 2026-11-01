@@ -8,6 +8,8 @@ compatibility_flags = ["nodejs_compat"]
 # in the same account). The workers.dev copy is off, so the API answers on one address only.
 routes = [{ pattern = "git2app-api.xpenstack.com", custom_domain = true }]
 workers_dev = false
+# Keep plain variables added in the Cloudflare dashboard (the GitHub ids) when a build deploys.
+keep_vars = true
 
 [vars]
 WORKERS_REPO = "shubhamrkrock/PWA-to-app-converter"
