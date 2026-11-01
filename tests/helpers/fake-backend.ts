@@ -260,6 +260,7 @@ export async function makeWorld(): Promise<World> {
     }
     if (url.origin === 'https://token.actions.githubusercontent.com') return Response.json({ keys: [actions.jwk] });
     if (url.href === 'https://github.com/login/oauth/access_token') {
+      if (body.code === 'notfound') return Response.json({ error: 'Not Found' }, { status: 404 });
       return Response.json(body.code === 'bad' ? { error: 'bad_verification_code' } : { access_token: `user-token-${body.code}` });
     }
     if (url.origin === 'https://api.github.com') {

@@ -139,10 +139,12 @@ export class GithubApp {
       headers: { accept: 'application/json', 'content-type': 'application/json', 'user-agent': UA },
       body: JSON.stringify({ client_id: clientId, client_secret: clientSecret, code }),
     });
-    const r = (await res.json()) as { access_token?: string; error?: string };
-    // GitHub's error code (e.g. incorrect_client_credentials, bad_verification_code) is not secret and
-    // tells a wrong GITHUB_CLIENT_SECRET apart from a used or expired code.
-    const reason = typeof r.error === 'string' && /^[a-z_]{1,64}$/.test(r.error) ? ` (GitHub said: ${r.error})` : '';
+    const r = (await res.json().catch(() => ({}))) as { access_token?: string; error?: string };
+    // GitHub's error (e.g. incorrect_client_credentials, bad_verification_code, or "Not Found" for an
+    // unknown client id) and the HTTP status are not secret and tell a wrong GITHUB_CLIENT_ID or
+    // GITHUB_CLIENT_SECRET apart from a used or expired code. Only plain words are echoed.
+    const said = typeof r.error === 'string' ? r.error.replace(/[^\w .-]/g, '').slice(0, 64) : '';
+    const reason = ` (GitHub said: ${said || 'nothing'}, HTTP ${res.status})`;
     if (!r.access_token) throw new HttpError(400, 'github_oauth', `GitHub sign-in could not be confirmed${reason}. Try connecting again.`);
     return r.access_token;
   }
