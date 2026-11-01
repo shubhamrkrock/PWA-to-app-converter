@@ -108,16 +108,41 @@ function pemToDer(pem: string): Uint8Array<ArrayBuffer> {
   return b64ToBytes(b64);
 }
 
+function derLength(n: number): number[] {
+  if (n < 0x80) return [n];
+  const bytes: number[] = [];
+  for (let v = n; v > 0; v >>= 8) bytes.unshift(v & 0xff);
+  return [0x80 | bytes.length, ...bytes];
+}
+
+// AlgorithmIdentifier for rsaEncryption (OID 1.2.840.113549.1.1.1, NULL parameters).
+const RSA_ALGORITHM = [0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00];
+
+/** Wraps a PKCS#1 RSAPrivateKey in a PKCS#8 PrivateKeyInfo, which is what WebCrypto imports. */
+function pkcs1ToPkcs8(pkcs1: Uint8Array): Uint8Array<ArrayBuffer> {
+  const octet = [0x04, ...derLength(pkcs1.length)];
+  const inner = 3 + RSA_ALGORITHM.length + octet.length + pkcs1.length; // 3 = INTEGER 0
+  const head = [0x30, ...derLength(inner), 0x02, 0x01, 0x00, ...RSA_ALGORITHM, ...octet];
+  const out = new Uint8Array(head.length + pkcs1.length);
+  out.set(head, 0);
+  out.set(pkcs1, head.length);
+  return out;
+}
+
 /**
- * GitHub App private keys download as PKCS#1 ("BEGIN RSA PRIVATE KEY"); WebCrypto needs PKCS#8.
- * The owner converts once with `openssl pkcs8 -topk8 -nocrypt` (documented in the setup guide),
- * and we refuse PKCS#1 with a clear message instead of failing obscurely.
+ * GitHub App private keys download as PKCS#1 ("BEGIN RSA PRIVATE KEY"); WebCrypto imports only
+ * PKCS#8, so a PKCS#1 key is wrapped here. The owner pastes the downloaded file as is, with no
+ * conversion step. Line breaks may be lost or changed by pasting; the base64 body is what counts.
  */
 export async function importRsaPrivateKey(pem: string): Promise<CryptoKey> {
-  if (pem.includes('BEGIN RSA PRIVATE KEY')) {
-    throw new Error('GitHub App key is PKCS#1. Convert it once: openssl pkcs8 -topk8 -nocrypt -in app.pem -out app.pk8.pem');
+  const pkcs1 = /BEGIN RSA PRIVATE KEY/.test(pem);
+  if (!pkcs1 && !/BEGIN PRIVATE KEY/.test(pem)) throw new Error('That is not a private key file (.pem). Paste the whole file, including the BEGIN and END lines.');
+  try {
+    const der = pemToDer(pem);
+    return await crypto.subtle.importKey('pkcs8', pkcs1 ? pkcs1ToPkcs8(der) : der, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
+  } catch {
+    throw new Error('The private key could not be read. Paste the whole .pem file again, including the BEGIN and END lines.');
   }
-  return crypto.subtle.importKey('pkcs8', pemToDer(pem), { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
 }
 
 export async function signRs256Jwt(key: CryptoKey, payload: Record<string, unknown>): Promise<string> {

@@ -43,6 +43,21 @@ test('github webhook signature: exact HMAC accepted, anything else refused', asy
   assert.equal(await verifyGithubSignature('s', body, good.replace('sha256=', 'sha1=')), false);
 });
 
-test('GitHub App key: PKCS#1 keys get a clear conversion message', async () => {
-  await assert.rejects(() => importRsaPrivateKey('-----BEGIN RSA PRIVATE KEY-----\nabc\n-----END RSA PRIVATE KEY-----'), /openssl pkcs8/);
+test('GitHub App key: the PKCS#1 file GitHub downloads works as is, and so does PKCS#8', async () => {
+  const { generateKeyPairSync, createVerify } = await import('node:crypto');
+  const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  for (const type of ['pkcs1', 'pkcs8'] as const) {
+    const pem = privateKey.export({ type, format: 'pem' }).toString();
+    // Pasted into a dashboard box, a key can lose its line breaks or gain Windows ones.
+    for (const variant of [pem, pem.replace(/\n/g, '\r\n'), pem.replace(/\n/g, ' ')]) {
+      const key = await importRsaPrivateKey(variant);
+      const sig = new Uint8Array(await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, enc.encode('hello')));
+      assert.equal(createVerify('SHA256').update('hello').verify(publicKey, sig), true, `${type} key signs`);
+    }
+  }
+});
+
+test('GitHub App key: a broken key is refused with a plain message', async () => {
+  await assert.rejects(() => importRsaPrivateKey('-----BEGIN RSA PRIVATE KEY-----\nabc\n-----END RSA PRIVATE KEY-----'), /private key/i);
+  await assert.rejects(() => importRsaPrivateKey('not a key'), /private key/i);
 });

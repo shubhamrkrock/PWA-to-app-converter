@@ -9,11 +9,12 @@
   },
   "workspaces": [
     "packages/*",
-    "apps/api"
+    "apps/api",
+    "apps/web"
   ],
   "scripts": {
     "test": "node --test --test-concurrency=1 tests/*.test.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p apps/web/tsconfig.json --noEmit",
     "analyze": "node packages/analyzer/bin/analyze.ts",
     "runner": "node packages/runner/bin/g2a-runner.ts",
     "dev:web": "npm --workspace apps/web run dev",

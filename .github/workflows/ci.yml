@@ -2,7 +2,7 @@ name: ci
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
 
 permissions:
@@ -32,6 +32,8 @@ jobs:
         run: npm run typecheck
       - name: Unit and API tests
         run: npm test
+      - name: Build the dashboard
+        run: npm run build:web
       - name: Database schema and row-level security
         env:
           PGHOST: localhost
