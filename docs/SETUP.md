@@ -27,7 +27,7 @@ GitHub > Settings > Developer settings > GitHub Apps > New GitHub App.
 |---|---|
 | Name | Git2App (the slug goes in `GITHUB_APP_SLUG` in `apps/api/wrangler.toml`) |
 | Homepage URL | `WEB` |
-| Callback URL | `API/api/v1/github/callback` |
+| Redirect URI (was "Callback URL") | `API/api/v1/github/callback` |
 | Request user authorization (OAuth) during installation | **On** (the API uses it to prove the installer can see the installation) |
 | Webhook URL | `API/api/v1/github/webhooks` |
 | Webhook secret | a long random value (`openssl rand -hex 32`), also stored as `GITHUB_WEBHOOK_SECRET` |
