@@ -8,8 +8,10 @@ Everything else is code in this repository. Each step says what to create, the e
 and where the value goes. Secret values never go in a file, a chat or a commit: they go
 straight into the place named (Cloudflare Worker secrets, GitHub settings, Supabase settings).
 
-Placeholders used below: `API` is the API's address (for example `https://api.git2app.dev`),
-`WEB` is the dashboard's address (for example `https://git2app.dev`).
+Placeholders used below: `API` is the API's address, `WEB` is the dashboard's address. The owner's
+are on his own domain (1 Nov 2026): `API` = `https://git2app-api.xpenstack.com`,
+`WEB` = `https://git2app.xpenstack.com`. Both sit one level below the domain, so Cloudflare's free
+certificate covers them (`api.git2app.xpenstack.com` would need a paid certificate).
 
 ## 0. What works before any of this
 
@@ -91,7 +93,10 @@ All in the Cloudflare dashboard; nothing runs on the owner's computer.
 
 1. R2: create bucket `git2app-artifacts` (private, no public access).
 2. Queues: create `git2app-dispatch` and `git2app-dispatch-dlq`.
-3. `apps/api/wrangler.toml` holds `API_ORIGIN`, `WEB_ORIGIN` and `GITHUB_APP_SLUG` (set 1 Nov 2026).
+3. `apps/api/wrangler.toml` holds `API_ORIGIN`, `WEB_ORIGIN` and `GITHUB_APP_SLUG` (set 1 Nov 2026),
+   and a `routes` entry with `custom_domain = true`: on deploy Cloudflare creates the API's DNS
+   record and certificate itself (the domain must be in the same Cloudflare account). The
+   workers.dev address is turned off (`workers_dev = false`).
 4. Workers & Pages > Create > Import a repository > this repository. Project name `git2app-api`,
    build command `npm ci`, deploy command `npx wrangler deploy --config apps/api/wrangler.toml`,
    root directory empty, production branch `main`. Wrangler is pinned in `apps/api/package.json`.
@@ -112,7 +117,8 @@ All in the Cloudflare dashboard; nothing runs on the owner's computer.
 6. Pages: Workers & Pages > Create > Pages > connect this repository. Build command
    `npm ci && npm run build:web`, output folder `apps/web/dist`, production branch `main`.
    Environment variables (all public, none is a secret): `VITE_SUPABASE_URL` (project URL),
-   `VITE_SUPABASE_ANON_KEY` (anon key), `VITE_API_ORIGIN` (`API`).
+   `VITE_SUPABASE_ANON_KEY` (anon key), `VITE_API_ORIGIN` (`API`). Then the Pages project >
+   Custom domains > Set up a custom domain > the host of `WEB` > Activate domain.
 
 ## 6. Build minutes
 
