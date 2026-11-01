@@ -13,3 +13,7 @@ test('a signed-in user can read their profile but not change their own plan', ()
   assert.ok(live.length > 0, 'profiles needs a read policy');
   for (const [name, cmd] of live) assert.equal(cmd, 'select', `policy ${name} lets users write profiles (plan)`);
 });
+
+test('the sign-up trigger function cannot be called through the public API', () => {
+  assert.match(sql, /revoke execute on function public\.handle_new_user\(\) from public, anon, authenticated/);
+});
