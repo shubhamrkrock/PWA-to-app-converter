@@ -4,14 +4,19 @@ name = "git2app-api"
 main = "src/index.ts"
 compatibility_date = "2026-10-01"
 compatibility_flags = ["nodejs_compat"]
+# Cloudflare creates the DNS record and certificate for this address on deploy (xpenstack.com is
+# in the same account). The workers.dev copy is off, so the API answers on one address only.
+routes = [{ pattern = "git2app-api.xpenstack.com", custom_domain = true }]
+workers_dev = false
 
 [vars]
 WORKERS_REPO = "shubhamrkrock/PWA-to-app-converter"
 WORKERS_REF = "main"
 CREDENTIALS_KEY_REF = "master-v1"
-# The owner's addresses (1 Nov 2026). The workers.dev part must match his Cloudflare account name.
-API_ORIGIN = "https://git2app-api.shubhamrkrock.workers.dev"
-WEB_ORIGIN = "https://git2app.pages.dev"
+# The owner's addresses on his own domain (1 Nov 2026). One level below xpenstack.com, so
+# Cloudflare's free certificate covers them (api.git2app.xpenstack.com would not be covered).
+API_ORIGIN = "https://git2app-api.xpenstack.com"
+WEB_ORIGIN = "https://git2app.xpenstack.com"
 GITHUB_APP_SLUG = "git2app-shubham"
 
 [[r2_buckets]]
