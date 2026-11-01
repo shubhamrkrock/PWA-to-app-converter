@@ -6,7 +6,7 @@ Keep the two in step.
 
 Everything else is code in this repository. Each step says what to create, the exact settings,
 and where the value goes. Secret values never go in a file, a chat or a commit: they go
-straight into the place named (`wrangler secret put`, GitHub settings, Supabase settings).
+straight into the place named (Cloudflare Worker secrets, GitHub settings, Supabase settings).
 
 Placeholders used below: `API` is the API's address (for example `https://api.git2app.dev`),
 `WEB` is the dashboard's address (for example `https://git2app.dev`).
@@ -30,18 +30,16 @@ GitHub > Settings > Developer settings > GitHub Apps > New GitHub App.
 | Redirect URI (was "Callback URL") | `API/api/v1/github/callback` |
 | Request user authorization (OAuth) during installation | **On** (the API uses it to prove the installer can see the installation) |
 | Webhook URL | `API/api/v1/github/webhooks` |
-| Webhook secret | a long random value (`openssl rand -hex 32`), also stored as `GITHUB_WEBHOOK_SECRET` |
+| Webhook secret | a long random value (the guide's Make one button), also stored as `GITHUB_WEBHOOK_SECRET` |
 | Repository permissions | Contents: **Read-only**. Metadata: Read-only. Nothing else. |
 | Subscribe to events | Push |
 | Where can it be installed | "Only on this account" for now; "Any account" when Git2App opens to others |
 
 After creating it:
 1. Note the **App ID** and the **Client ID**; generate a **client secret**.
-2. Generate a **private key** (a `.pem` download). The API needs PKCS#8:
-   ```
-   openssl pkcs8 -topk8 -nocrypt -in git2app.*.private-key.pem -out git2app-pkcs8.pem
-   ```
-3. Delete the downloaded files once they are stored as secrets (step 4).
+2. Generate a **private key** (Credentials > Key pairs > New key; a `.pem` download). Keep it
+   as downloaded: the API reads GitHub's PKCS#1 file directly, no conversion.
+3. Delete the downloaded file once it is stored as a secret (step 5).
 
 ## 2. GitHub: the Git2App Workers App (private, only on this repository)
 
@@ -57,7 +55,7 @@ asked to give Git2App access to Actions in their own repositories.
 
 Install it on **this repository only** (`PWA-to-app-converter`). The installation's settings
 page address ends in the **installation id**; it goes in `WORKERS_INSTALLATION_ID`. Generate
-and convert its private key as in step 1.
+its private key as in step 1.
 
 ## 3. GitHub: settings of this repository
 
@@ -89,28 +87,32 @@ and convert its private key as in step 1.
 
 ## 5. Cloudflare
 
+All in the Cloudflare dashboard; nothing runs on the owner's computer.
+
 1. R2: create bucket `git2app-artifacts` (private, no public access).
 2. Queues: create `git2app-dispatch` and `git2app-dispatch-dlq`.
-3. In `apps/api/wrangler.toml` set `API_ORIGIN`, `WEB_ORIGIN` and `GITHUB_APP_SLUG`.
-4. From `apps/api`, store each secret with `npx wrangler secret put NAME`:
+3. `apps/api/wrangler.toml` holds `API_ORIGIN`, `WEB_ORIGIN` and `GITHUB_APP_SLUG` (set 1 Nov 2026).
+4. Workers & Pages > Create > Import a repository > this repository. Project name `git2app-api`,
+   build command `npm ci`, deploy command `npx wrangler deploy --config apps/api/wrangler.toml`,
+   root directory empty, production branch `main`. Wrangler is pinned in `apps/api/package.json`.
+5. Worker > Settings > Variables and Secrets > Add, type **Secret**, one per row:
 
 | Name | Value |
 |---|---|
 | `SUPABASE_URL` | Supabase project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
 | `GITHUB_APP_ID`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | from step 1 |
-| `GITHUB_APP_PRIVATE_KEY` | contents of `git2app-pkcs8.pem` |
+| `GITHUB_APP_PRIVATE_KEY` | the whole `.pem` file from step 1, as downloaded |
 | `GITHUB_WEBHOOK_SECRET` | from step 1 |
-| `WORKERS_APP_ID`, `WORKERS_APP_PRIVATE_KEY` | from step 2 (PKCS#8 key) |
+| `WORKERS_APP_ID`, `WORKERS_APP_PRIVATE_KEY` | from step 2 (the `.pem` as downloaded) |
 | `WORKERS_INSTALLATION_ID` | from step 2 |
-| `STATE_SECRET`, `TICKET_SECRET` | each `openssl rand -base64 32`, different values |
-| `CREDENTIALS_MASTER_KEY` | `openssl rand -base64 32`; losing it makes stored signing keys unreadable, so keep a copy in a password manager |
+| `STATE_SECRET`, `TICKET_SECRET` | random 32 bytes each (the guide's Make one button), different values |
+| `CREDENTIALS_MASTER_KEY` | random 32 bytes; losing it makes stored signing keys unreadable, so keep a copy in a password manager |
 
-5. `npx wrangler deploy`, then add the custom domain for `API` to the Worker.
-6. Dashboard: Workers & Pages > Create > Pages > connect this repository. Build command
+6. Pages: Workers & Pages > Create > Pages > connect this repository. Build command
    `npm ci && npm run build:web`, output folder `apps/web/dist`, production branch `main`.
    Environment variables (all public, none is a secret): `VITE_SUPABASE_URL` (project URL),
-   `VITE_SUPABASE_ANON_KEY` (anon key), `VITE_API_ORIGIN` (`API`). Add the custom domain `WEB`.
+   `VITE_SUPABASE_ANON_KEY` (anon key), `VITE_API_ORIGIN` (`API`).
 
 ## 6. Build minutes
 
