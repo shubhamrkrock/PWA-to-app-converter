@@ -6,6 +6,7 @@ import { failedStage, formatBytes, isFinished, steps, toneOf } from '../apps/web
 import { defaultForm, formErrors, formFromConfig, payloadFromForm, suggestId } from '../apps/web/src/lib/config-form.ts';
 import { ApiError, makeApi } from '../apps/web/src/lib/api.ts';
 import { bytesToBase64, fileToBase64, looksLike } from '../apps/web/src/lib/files.ts';
+import { orderBranches } from '../apps/web/src/lib/branches.ts';
 import type { AppConfiguration } from '@git2app/shared';
 
 const ID = '0b6f3b4e-8a51-4d8e-9a7e-2a1b3c4d5e6f';
@@ -115,4 +116,10 @@ test('files: base64 matches Node, size cap, and file sniffing', async () => {
   const profile = new Uint8Array([0x30, ...new TextEncoder().encode('xx<?xml?><plist version="1.0">')]);
   assert.equal(looksLike('mobileprovision', profile), true);
   assert.equal(looksLike('mobileprovision', Uint8Array.of(0x30, 0x82)), false);
+});
+
+test('branch picker: the default branch comes first, then main, dev and prod, then the rest', () => {
+  const names = ['claude/a', 'backup/x', 'prod', 'main', 'dev', 'claude/b'];
+  assert.deepEqual(orderBranches(names, 'dev'), ['dev', 'main', 'prod', 'backup/x', 'claude/a', 'claude/b']);
+  assert.deepEqual(orderBranches(['b', 'a'], 'gone'), ['gone', 'a', 'b']);
 });
