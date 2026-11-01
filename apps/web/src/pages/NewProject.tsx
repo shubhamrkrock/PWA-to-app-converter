@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useApp } from '../session.tsx';
 import { ErrorNote, Loading, useLoad } from '../ui.tsx';
 import type { Project, Repo } from '../types.ts';
+import { orderBranches } from '../lib/branches.ts';
 
 export function NewProject() {
   const { api, go } = useApp();
@@ -77,8 +78,8 @@ export function NewProject() {
           <label className="field">
             <span>Branch</span>
             <select value={branch} onChange={(e) => setBranch(e.target.value)}>
-              {(branches.data ?? [{ name: branch }]).map((b) => (
-                <option key={b.name}>{b.name}</option>
+              {orderBranches((branches.data ?? []).map((b) => b.name), repo.defaultBranch).map((name) => (
+                <option key={name}>{name}</option>
               ))}
             </select>
           </label>
