@@ -9,7 +9,7 @@ import { androidOutputs, checkApkFacts, parseBadging } from '../packages/runner/
 import { checkProfile, parseProfile, signingEntitlements } from '../packages/runner/src/ios.ts';
 import { chooseIcon, isSvg, pngSize } from '../packages/runner/src/icons.ts';
 import { sandboxEnv } from '../packages/runner/src/exec.ts';
-import { inside, installCommand, builtManifest } from '../packages/runner/src/workspace.ts';
+import { appBuildEnv, inside, installCommand, builtManifest } from '../packages/runner/src/workspace.ts';
 import { Logger } from '../packages/runner/src/log.ts';
 import { uploadProjectCopy } from '../packages/runner/src/pipeline.ts';
 
@@ -226,4 +226,9 @@ test('project copy: a copy over the upload limit is left out with a note, the bu
   assert.match(note ?? '', /left out/);
   assert.equal(await uploadProjectCopy(reporter, 'android-project', file, 4096), null);
   assert.deepEqual(sent, ['android-project']);
+});
+
+test('web build: the app build tells the project it is for a phone app', () => {
+  assert.deepEqual(appBuildEnv('android'), { GIT2APP: '1', GIT2APP_PLATFORM: 'android' });
+  assert.deepEqual(appBuildEnv('ios'), { GIT2APP: '1', GIT2APP_PLATFORM: 'ios' });
 });
