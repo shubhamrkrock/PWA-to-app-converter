@@ -5,14 +5,14 @@
  * stage (principle 9), and packages are offered only after validation (principle 13).
  */
 
-import { access, mkdir, readFile, writeFile, cp, rm } from 'node:fs/promises';
+import { access, mkdir, readFile, writeFile, cp, rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { failureFor, type AnalysisReport, type BuildStage, type BuildStatus } from '@git2app/shared';
 import { analyze, FsRepoSource } from '@git2app/analyzer';
 import { androidPermissionsFor, TOOLCHAIN } from '@git2app/generator';
 import { run, handToSandbox, takeFromSandbox } from './exec.ts';
 import type { Logger } from './log.ts';
-import type { AnalysisSpec, BuildSpec, Reporter } from './reporter.ts';
+import { UPLOAD_LIMIT, type AnalysisSpec, type ArtifactType, type BuildSpec, type Reporter } from './reporter.ts';
 import { buildWeb, builtManifest, checkWebOutput, cloneAtCommit, inside, installDependencies, StageError } from './workspace.ts';
 import { chooseIcon, type IconSource } from './icons.ts';
 import { createCapacitorProject, createTwaProject } from './native.ts';
@@ -56,6 +56,24 @@ function message(e: unknown): string {
 async function zipDir(parent: string, name: string, out: string, excludes: string[]): Promise<string> {
   await run('zip', ['-qry', out, name, ...excludes.flatMap((x) => ['-x', x])], { cwd: parent });
   return out;
+}
+
+/**
+ * The project copy is an extra download: when it is over the upload limit it is left out
+ * with a note, so the app itself still reaches the person. Returns that note, or null.
+ */
+export async function uploadProjectCopy(
+  reporter: { upload(type: ArtifactType, file: string, validated: boolean): Promise<void> },
+  type: ArtifactType,
+  file: string,
+  limit = UPLOAD_LIMIT,
+): Promise<string | null> {
+  const { size } = await stat(file);
+  if (size > limit) {
+    return `The project copy (${Math.ceil(size / 1024 / 1024)} MB) is over the ${Math.round(limit / 1024 / 1024)} MB upload limit, so it was left out. The app itself is not affected.`;
+  }
+  await reporter.upload(type, file, false);
+  return null;
 }
 
 async function getSource(spec: { repo: BuildSpec['repo'] }, ctx: PipelineCtx, dest: string): Promise<void> {
@@ -148,8 +166,21 @@ export async function runBuild(spec: BuildSpec, ctx: PipelineCtx): Promise<Build
 
     const projZip = join(ctx.workRoot, `${spec.platform}-project.zip`);
     const projName = spec.platform === 'android' ? 'android' : 'ios';
-    await zipDir(nativeDir, projName, projZip, [`${projName}/app/build/*`, `${projName}/build/*`, `${projName}/.gradle/*`, `${projName}/App/build/*`, '*/DerivedData/*']);
-    await ctx.reporter.upload(spec.platform === 'android' ? 'android-project' : 'ios-project', projZip, false);
+    await zipDir(nativeDir, projName, projZip, [
+      `${projName}/app/build/*`,
+      `${projName}/build/*`,
+      `${projName}/.gradle/*`,
+      `${projName}/.kotlin/*`,
+      `${projName}/app/.cxx/*`,
+      `${projName}/capacitor-cordova-android-plugins/build/*`,
+      `${projName}/App/build/*`,
+      '*/DerivedData/*',
+    ]);
+    const copyNote = await uploadProjectCopy(ctx.reporter, spec.platform === 'android' ? 'android-project' : 'ios-project', projZip);
+    if (copyNote) {
+      ctx.logger.line(`WARNING: ${copyNote}`);
+      report.notes = [...((report.notes as string[] | undefined) ?? []), copyNote];
+    }
 
     // SIGNING: debug builds are debug-signed by the toolchain; release builds go to the signing job.
     await st.enter('SIGNING');
