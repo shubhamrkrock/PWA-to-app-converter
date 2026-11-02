@@ -36,6 +36,9 @@ export interface AnalysisSpec {
   hostedOrigin: string | null;
 }
 
+/** The largest file the API takes in one upload. */
+export const UPLOAD_LIMIT = 95 * 1024 * 1024;
+
 export type ArtifactType = 'apk' | 'aab' | 'ipa' | 'android-project' | 'ios-project' | 'ios-simulator-app' | 'report';
 
 export interface Reporter {
@@ -129,7 +132,7 @@ export class ApiReporter implements Reporter {
 
   async upload(type: ArtifactType, file: string, validated: boolean): Promise<void> {
     const buf = await readFile(file);
-    if (buf.length > 95 * 1024 * 1024) throw new Error(`${basename(file)} is over 95 MB, the upload limit`);
+    if (buf.length > UPLOAD_LIMIT) throw new Error(`${basename(file)} is over 95 MB, the upload limit`);
     await this.req('PUT', `/artifacts/${type}?name=${encodeURIComponent(basename(file))}`, new Uint8Array(buf), {
       'x-sha256': sha256File(buf),
       'x-validated': String(validated),

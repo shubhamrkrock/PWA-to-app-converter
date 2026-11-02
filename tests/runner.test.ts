@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { AppConfiguration } from '../packages/shared/src/index.ts';
@@ -10,6 +11,7 @@ import { chooseIcon, isSvg, pngSize } from '../packages/runner/src/icons.ts';
 import { sandboxEnv } from '../packages/runner/src/exec.ts';
 import { inside, installCommand, builtManifest } from '../packages/runner/src/workspace.ts';
 import { Logger } from '../packages/runner/src/log.ts';
+import { uploadProjectCopy } from '../packages/runner/src/pipeline.ts';
 
 const cfg: AppConfiguration = {
   appName: 'Xpenstack',
@@ -211,4 +213,17 @@ test('androidOutputs finds the APK and, for release, the AAB that Gradle wrote',
   const rel = await androidOutputs(dir, 'release');
   assert.equal(rel.apk, join(dir, 'app/build/outputs/apk/release/app-release-unsigned.apk'));
   assert.equal(rel.aab, join(dir, 'app/build/outputs/bundle/release/app-release.aab'));
+});
+
+test('project copy: a copy over the upload limit is left out with a note, the build goes on', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'g2a-copy-'));
+  const file = join(dir, 'android-project.zip');
+  await writeFile(file, Buffer.alloc(2048));
+  const sent: string[] = [];
+  const reporter = { upload: async (type: string) => void sent.push(type) };
+  const note = await uploadProjectCopy(reporter, 'android-project', file, 1024);
+  assert.equal(sent.length, 0);
+  assert.match(note ?? '', /left out/);
+  assert.equal(await uploadProjectCopy(reporter, 'android-project', file, 4096), null);
+  assert.deepEqual(sent, ['android-project']);
 });
