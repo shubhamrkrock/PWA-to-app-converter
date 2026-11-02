@@ -13,7 +13,7 @@ import { androidPermissionsFor, TOOLCHAIN } from '@git2app/generator';
 import { run, handToSandbox, takeFromSandbox } from './exec.ts';
 import type { Logger } from './log.ts';
 import { UPLOAD_LIMIT, type AnalysisSpec, type ArtifactType, type BuildSpec, type Reporter } from './reporter.ts';
-import { buildWeb, builtManifest, checkWebOutput, cloneAtCommit, inside, installDependencies, StageError } from './workspace.ts';
+import { appBuildEnv, buildWeb, builtManifest, checkWebOutput, cloneAtCommit, inside, installDependencies, StageError } from './workspace.ts';
 import { chooseIcon, type IconSource } from './icons.ts';
 import { createCapacitorProject, createTwaProject } from './native.ts';
 import { androidOutputs, apkFacts, checkAabStructure, checkApkFacts, gradleBuild, signAndroid, verifyApkSignature, type AndroidKey, type AndroidOutputs } from './android.ts';
@@ -129,7 +129,7 @@ export async function runBuild(spec: BuildSpec, ctx: PipelineCtx): Promise<Build
     else ctx.logger.line('Static site: no dependencies to install.');
 
     await st.enter('WEB_BUILD');
-    await buildWeb(projectDir, analysis.build, ctx.logger);
+    await buildWeb(projectDir, analysis.build, ctx.logger, appBuildEnv(spec.platform));
     const web = await checkWebOutput(projectDir, outputDir);
     ctx.logger.line(`Web output: ${web.files} files, ${(web.bytes / 1048576).toFixed(1)} MB in ${outputDir}`);
     const manifest = await builtManifest(web.dir);

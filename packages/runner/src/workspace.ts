@@ -85,6 +85,14 @@ function explainInstall(tail: string): string {
   return 'See the log above for the first error from the package manager.';
 }
 
+/**
+ * Set for the web build of an app, so a project can leave out what only its website should have
+ * (for example pages behind a website login, which an app file cannot protect).
+ */
+export function appBuildEnv(platform: 'android' | 'ios'): Record<string, string> {
+  return { GIT2APP: '1', GIT2APP_PLATFORM: platform };
+}
+
 export async function buildWeb(projectDir: string, build: BuildDetection, logger: Logger, env: Record<string, string> = {}): Promise<void> {
   if (!build.buildCommand) {
     logger.line('No build step: the project is served as-is.');
