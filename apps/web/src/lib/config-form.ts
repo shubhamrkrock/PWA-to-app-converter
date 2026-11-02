@@ -1,5 +1,5 @@
 /** The app settings form: sensible defaults from the repo and analysis, and its payload. */
-import { PERMISSIONS, validateConfig, type AppConfiguration, type NativePermission } from '@git2app/shared';
+import { PERMISSIONS, validateConfig, type AppConfiguration, type CompatibilityFinding, type NativePermission } from '@git2app/shared';
 
 export interface ConfigForm {
   appName: string;
@@ -33,8 +33,37 @@ function title(repo: string): string {
 
 const HEX = /^#[0-9a-f]{6}$/i;
 
-export function defaultForm(fullName: string, manifest?: { themeColor: string | null; backgroundColor: string | null } | null): ConfigForm {
+/** A ready Why text for each permission, so nobody has to write one (15 to 300 characters). */
+export const PERMISSION_WHY: Record<NativePermission, string> = {
+  camera: 'Take photos in the app, for example of a receipt or a document.',
+  location: 'Show what is near you, using your location only while the app is open.',
+  microphone: 'Record audio that you choose to add in the app.',
+  notifications: 'Send you the reminders and updates you asked for in the app.',
+  photos: 'Pick a photo you already took to add it in the app.',
+  biometrics: 'Unlock the app with your face or fingerprint instead of a password.',
+  bluetooth: 'Connect to nearby devices you choose to use with the app.',
+};
+
+/** Ticks or unticks a permission; ticking fills an empty Why box with the ready text. */
+export function withPermission(f: ConfigForm, p: NativePermission): ConfigForm {
+  if (f.permissions.includes(p)) return { ...f, permissions: f.permissions.filter((x) => x !== p) };
+  const text = f.permissionText[p]?.trim() ? f.permissionText[p] : PERMISSION_WHY[p];
+  return { ...f, permissions: [...f.permissions, p], permissionText: { ...f.permissionText, [p]: text } };
+}
+
+/** Permissions the check found in the code (findings coded NATIVE_CAMERA and so on). */
+function foundPermissions(findings: CompatibilityFinding[]): NativePermission[] {
+  const codes = new Set(findings.map((x) => x.code));
+  return PERMISSIONS.filter((p) => codes.has(`NATIVE_${p.toUpperCase()}`));
+}
+
+export function defaultForm(
+  fullName: string,
+  manifest?: { themeColor: string | null; backgroundColor: string | null } | null,
+  findings: CompatibilityFinding[] = [],
+): ConfigForm {
   const id = suggestId(fullName);
+  const found = foundPermissions(findings);
   return {
     appName: title(fullName.split('/')[1] ?? fullName),
     packageId: id,
@@ -45,8 +74,8 @@ export function defaultForm(fullName: string, manifest?: { themeColor: string | 
     themeColor: manifest?.themeColor && HEX.test(manifest.themeColor) ? manifest.themeColor : '#FFFFFF',
     backgroundColor: manifest?.backgroundColor && HEX.test(manifest.backgroundColor) ? manifest.backgroundColor : '#FFFFFF',
     orientation: 'portrait',
-    permissions: [],
-    permissionText: {},
+    permissions: found,
+    permissionText: Object.fromEntries(found.map((p) => [p, PERMISSION_WHY[p]])),
     urlScheme: '',
     privacyPolicyUrl: '',
   };

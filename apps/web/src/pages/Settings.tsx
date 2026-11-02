@@ -3,7 +3,7 @@ import { PERMISSIONS, type NativePermission } from '@git2app/shared';
 import { useApp } from '../session.tsx';
 import { ErrorNote, Loading } from '../ui.tsx';
 import { ApiError } from '../lib/api.ts';
-import { defaultForm, formErrors, formFromConfig, payloadFromForm, PERMISSION_LABEL, type ConfigForm } from '../lib/config-form.ts';
+import { defaultForm, formErrors, formFromConfig, payloadFromForm, PERMISSION_LABEL, withPermission, type ConfigForm } from '../lib/config-form.ts';
 import type { AnalysisRow, Project, SavedConfig } from '../types.ts';
 
 export function Settings({ project }: { project: Project }) {
@@ -21,7 +21,7 @@ export function Settings({ project }: { project: Project }) {
         const cfg = await api.get<SavedConfig | null>(`/projects/${project.id}/configuration`);
         if (cfg) return setForm(formFromConfig(cfg));
         const a = await api.get<{ analysis: AnalysisRow | null }>(`/projects/${project.id}/analysis`);
-        setForm(defaultForm(project.repository_name, a.analysis?.analysis_report.pwa.manifest ?? null));
+        setForm(defaultForm(project.repository_name, a.analysis?.analysis_report.pwa.manifest ?? null, a.analysis?.analysis_report.findings ?? []));
       } catch (e) {
         setError(e);
       }
@@ -35,7 +35,11 @@ export function Settings({ project }: { project: Project }) {
     setSaved(false);
     setServerErrors({});
   };
-  const togglePerm = (p: NativePermission) => set('permissions', form.permissions.includes(p) ? form.permissions.filter((x) => x !== p) : [...form.permissions, p]);
+  const togglePerm = (p: NativePermission) => {
+    setForm(withPermission(form, p));
+    setSaved(false);
+    setServerErrors({});
+  };
 
   const field = (key: keyof ConfigForm, label: string, input: React.ReactNode, hint?: string) => (
     <label className={`field ${errors[key] ? 'has-error' : ''}`}>

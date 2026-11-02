@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { hrefFor, parseRoute, type Route } from '../apps/web/src/lib/routes.ts';
 import { failedStage, formatBytes, isFinished, steps, toneOf } from '../apps/web/src/lib/status.ts';
-import { defaultForm, formErrors, formFromConfig, payloadFromForm, suggestId } from '../apps/web/src/lib/config-form.ts';
+import { defaultForm, formErrors, formFromConfig, payloadFromForm, PERMISSION_WHY, suggestId, withPermission } from '../apps/web/src/lib/config-form.ts';
 import { ApiError, makeApi } from '../apps/web/src/lib/api.ts';
 import { bytesToBase64, fileToBase64, looksLike } from '../apps/web/src/lib/files.ts';
 import { orderBranches } from '../apps/web/src/lib/branches.ts';
@@ -83,6 +83,32 @@ test('settings form: errors show on the field the person typed in', () => {
   assert.ok(errs.packageId);
   assert.ok(errs.buildNumber);
   assert.ok(!errs.bundleId, 'with the same id on iPhone, the bundle error lands on packageId');
+});
+
+test('settings form: permissions the check found are ticked with their Why text filled', () => {
+  const findings = [
+    { level: 'info' as const, code: 'NATIVE_CAMERA', message: '' },
+    { level: 'info' as const, code: 'NATIVE_NOTIFICATIONS', message: '' },
+    { level: 'info' as const, code: 'NATIVE_FILES', message: '' },
+  ];
+  const f = defaultForm('shubhamrkrock/Xpenstack', null, findings);
+  assert.deepEqual(f.permissions, ['camera', 'notifications']);
+  assert.equal(f.permissionText.camera, PERMISSION_WHY.camera);
+  assert.deepEqual(formErrors(f), {});
+  for (const p of Object.keys(PERMISSION_WHY) as Array<keyof typeof PERMISSION_WHY>) {
+    const n = PERMISSION_WHY[p].length;
+    assert.ok(n >= 15 && n <= 300, `${p} why text fits the 15 to 300 rule`);
+  }
+});
+
+test('settings form: ticking a permission fills an empty Why box, never a typed one', () => {
+  const f = defaultForm('a/b');
+  const on = withPermission(f, 'photos');
+  assert.deepEqual(on.permissions, ['photos']);
+  assert.equal(on.permissionText.photos, PERMISSION_WHY.photos);
+  const typed = withPermission({ ...f, permissionText: { camera: 'Scan my receipts please' } }, 'camera');
+  assert.equal(typed.permissionText.camera, 'Scan my receipts please');
+  assert.deepEqual(withPermission(on, 'photos').permissions, [], 'ticking again unticks');
 });
 
 test('settings form: permission text only for chosen permissions', () => {
