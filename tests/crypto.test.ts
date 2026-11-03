@@ -22,6 +22,20 @@ test('envelope encryption: the same plaintext seals differently each time', asyn
   assert.notDeepEqual(a, b);
 });
 
+test('envelope encryption: a master key made by the setup guide (base64url, no padding) works', async () => {
+  // The guide's "Make one" button gives base64url without "=" (3 Nov: the vault refused it with a 500).
+  const raw = new Uint8Array(32).fill(0xfb); // encodes with "+" and "/" in plain base64
+  const plain = btoa(String.fromCharCode(...raw));
+  const url = plain.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  assert.match(url, /[-_]/);
+  const blob = await sealCredential(url, enc.encode('secret'), 'u:c');
+  assert.equal(new TextDecoder().decode(await openCredential(plain, blob, 'u:c')), 'secret'); // same key either way
+});
+
+test('envelope encryption: a master key that is not 32 bytes is refused with a plain message', async () => {
+  await assert.rejects(() => sealCredential(btoa('too short'), enc.encode('x'), 'aad'), /CREDENTIALS_MASTER_KEY/);
+});
+
 test('signed tokens: tamper and expiry are rejected', async () => {
   const t = await signToken('k', { a: 1, exp: Math.floor(Date.now() / 1000) + 60 });
   assert.deepEqual((await verifyToken<{ a: number; exp: number }>('k', t))?.a, 1);
