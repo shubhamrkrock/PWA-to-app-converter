@@ -244,8 +244,23 @@ async function importAes(raw: Uint8Array<ArrayBuffer>, usages: KeyUsage[]): Prom
   return crypto.subtle.importKey('raw', raw, { name: 'AES-GCM' }, false, usages);
 }
 
+/**
+ * The vault's master key, from the CREDENTIALS_MASTER_KEY secret: 32 bytes as base64 or base64url,
+ * with or without "=" (the setup guide's "Make one" button gives base64url without padding).
+ */
+function masterKey(masterKeyB64: string): Uint8Array<ArrayBuffer> {
+  let raw: Uint8Array<ArrayBuffer>;
+  try {
+    raw = b64urlDecode(String(masterKeyB64 ?? '').trim().replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_'));
+  } catch {
+    throw new Error('CREDENTIALS_MASTER_KEY is not base64');
+  }
+  if (raw.length !== 32) throw new Error(`CREDENTIALS_MASTER_KEY must be 32 bytes, got ${raw.length}`);
+  return raw;
+}
+
 export async function sealCredential(masterKeyB64: string, plaintext: Uint8Array<ArrayBuffer>, aad: string): Promise<Uint8Array<ArrayBuffer>> {
-  const master = await importAes(b64ToBytes(masterKeyB64), ['encrypt']);
+  const master = await importAes(masterKey(masterKeyB64), ['encrypt']);
   const dataKey = crypto.getRandomValues(new Uint8Array(32));
   const kIv = crypto.getRandomValues(new Uint8Array(12));
   const wrapped = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: kIv, additionalData: enc.encode(aad) }, master, dataKey));
@@ -269,7 +284,7 @@ export async function openCredential(masterKeyB64: string, blob: Uint8Array<Arra
   const wrapped = blob.slice(13, 13 + wrappedLen);
   const iv = blob.slice(13 + wrappedLen, 25 + wrappedLen);
   const ct = blob.slice(25 + wrappedLen);
-  const master = await importAes(b64ToBytes(masterKeyB64), ['decrypt']);
+  const master = await importAes(masterKey(masterKeyB64), ['decrypt']);
   const dataKey = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: kIv, additionalData: enc.encode(aad) }, master, wrapped));
   const dk = await importAes(dataKey, ['decrypt']);
   dataKey.fill(0);
