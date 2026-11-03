@@ -23,6 +23,8 @@ export function capacitorPlan(cfg: AppConfiguration, webDir: string): CapacitorP
     '@capacitor/ios': TOOLCHAIN.npm['@capacitor/ios'],
     '@capacitor/app': TOOLCHAIN.plugins['@capacitor/app'],
     '@capacitor/browser': TOOLCHAIN.plugins['@capacitor/browser'],
+    '@capacitor/filesystem': TOOLCHAIN.plugins['@capacitor/filesystem'],
+    '@capacitor/share': TOOLCHAIN.plugins['@capacitor/share'],
   };
   const notes: string[] = [];
   for (const p of cfg.permissions) {

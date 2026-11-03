@@ -150,6 +150,14 @@ for `xpenstack://auth/callback`, biometric-gated storage later). So the recommen
 already begun in the Xpenstack repo (`claude/store-shell`). Git2App will be able to
 reproduce that shell from config rather than by hand.
 
+### 4.3 Saving a file from inside the app (3 Nov 2026)
+
+A web download (an `<a download>` link to a file the page made) goes nowhere inside an app
+WebView. Every Capacitor app also gets the pinned `@capacitor/filesystem` and `@capacitor/share`
+plugins (`window.Capacitor.Plugins.Filesystem` and `.Share`): the web app writes the file to the
+app's cache folder and hands it to the phone's Save and Share sheet. The web project adds no
+package; on the web nothing changes.
+
 ## 5. Data model
 
 See `supabase/migrations`. Tables (PRD §12): `profiles`, `github_installations`,
