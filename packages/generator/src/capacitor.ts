@@ -50,10 +50,3 @@ export function capacitorPlan(cfg: AppConfiguration, webDir: string): CapacitorP
   return { capacitorConfig, packages, notes };
 }
 
-/**
- * The app's link name (URL scheme): the one the owner set, otherwise the app id in lower case
- * (com.example.app), so every app can be returned to after signing in, and two apps never share one.
- */
-export function appUrlScheme(cfg: Pick<AppConfiguration, 'packageId' | 'urlScheme'>): string {
-  return cfg.urlScheme || cfg.packageId.toLowerCase().replace(/_/g, '-');
-}

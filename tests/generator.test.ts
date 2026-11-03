@@ -9,7 +9,6 @@ import type { AppConfiguration } from '../packages/shared/src/index.ts';
 import { validateConfig } from '../packages/shared/src/validate.ts';
 import {
   capacitorPlan,
-  appUrlScheme,
   patchAppBuildGradle,
   patchAndroidManifest,
   patchPbxproj,
@@ -160,10 +159,27 @@ test('capacitor: every app can sign in and come back (App and Browser plugins, p
   assert.match(plan.packages['@capacitor/browser'] ?? '', /^\d+\.\d+\.\d+$/);
 });
 
-test('url scheme: an empty Link name uses the app id, so sign-in can always return to the app', () => {
-  assert.equal(appUrlScheme({ ...base, urlScheme: null }), 'com.xpenstack.app');
-  assert.equal(appUrlScheme({ ...base, packageId: 'com.My_Company.App2', urlScheme: null }), 'com.my-company.app2');
-  assert.equal(appUrlScheme({ ...base, urlScheme: 'xpenstack' }), 'xpenstack');
-  const out = patchAndroidManifest(fx('android/AndroidManifest.xml'), { ...base, urlScheme: appUrlScheme({ ...base, urlScheme: null }) });
-  assert.match(out, /<data android:scheme="com\.xpenstack\.app" \/>/);
+
+// Owner, 3 Nov 2026: sign-in comes back into the app through a verified app link, never a custom
+// scheme any app can claim (Xpenstack security review F1, 1 Nov).
+test('app links: Android opens https links of the app\'s own site, verified by assetlinks.json', () => {
+  const out = patchAndroidManifest(fx('android/AndroidManifest.xml'), { ...base, appLinks: ['https://app.xpenstack.com/auth/callback'] });
+  assert.match(out, /<intent-filter android:autoVerify="true">/);
+  assert.match(out, /<data android:scheme="https" android:host="app\.xpenstack\.com" android:path="\/auth\/callback" \/>/);
+  assert.doesNotMatch(patchAndroidManifest(fx('android/AndroidManifest.xml'), base), /autoVerify/);
+});
+
+test('app links: iPhone gets the associated domain', () => {
+  const ent = entitlements({ ...base, appLinks: ['https://app.xpenstack.com/auth/callback'] }, 'debug');
+  assert.match(ent ?? '', /com\.apple\.developer\.associated-domains<\/key>\s*<array>\s*<string>applinks:app\.xpenstack\.com<\/string>/);
+  assert.equal(entitlements(base, 'debug'), null);
+});
+
+test('app links: only plain https addresses on a real host are accepted', () => {
+  assert.ok(validateConfig({ ...base, appLinks: ['https://app.xpenstack.com/auth/callback'] }).ok);
+  for (const bad of ['http://a.com/x', 'https://*.a.com/x', 'https://a.com', 'https://localhost/x', 'https://a.com/x?y=1', 'xpenstack://auth/callback', 'https://a.com/x#y', 'https://a.com/x y']) {
+    const v = validateConfig({ ...base, appLinks: [bad] });
+    assert.ok(!v.ok && 'appLinks' in v.errors, bad);
+  }
+  assert.ok(!validateConfig({ ...base, appLinks: [1, 2, 3, 4, 5, 6].map((n) => `https://a.com/x${n}`) }).ok, 'at most five');
 });

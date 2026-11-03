@@ -148,9 +148,12 @@ export async function signAndroid(outputs: AndroidOutputs, key: AndroidKey, work
       const out = join(workDir, 'app-release.aab');
       await run('cp', [outputs.aab, out], { cwd: workDir });
       await run('jarsigner', ['-sigalg', 'SHA256withRSA', '-digestalg', 'SHA-256', '-keystore', ks, '-storepass:env', 'G2A_KS_PASS', '-keypass:env', 'G2A_KEY_PASS', out, key.keyAlias], { cwd: workDir, env, logger });
-      await run('jarsigner', ['-verify', '-strict', out], { cwd: workDir, logger }).catch(() => {
+      // Not -strict: an upload key is self-signed by design (Play trusts it by its fingerprint), and
+      // -strict fails every self-signed signer. The signature itself must still check out.
+      const said = await run('jarsigner', ['-verify', out], { cwd: workDir, logger }).catch(() => '');
+      if (!/jar verified/.test(said) || /unsigned/i.test(said)) {
         throw new StageError('The signed AAB did not verify', 'Check the key alias and passwords of the upload key.');
-      });
+      }
       signed.aab = out;
     }
   } catch (e) {

@@ -118,6 +118,8 @@ export interface AppConfiguration {
   permissionText?: Partial<Record<NativePermission, string>>;
   /** Custom URL scheme for deep links, e.g. "xpenstack" for xpenstack://auth/callback. */
   urlScheme?: string | null;
+  /** https addresses the app opens itself, verified by the site (assetlinks.json, apple-app-site-association). */
+  appLinks?: string[];
   privacyPolicyUrl: string | null;
 }
 
