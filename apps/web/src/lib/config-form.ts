@@ -14,6 +14,7 @@ export interface ConfigForm {
   permissions: NativePermission[];
   permissionText: Partial<Record<NativePermission, string>>;
   urlScheme: string;
+  appLinks: string; // one per line
   privacyPolicyUrl: string;
 }
 
@@ -77,6 +78,7 @@ export function defaultForm(
     permissions: found,
     permissionText: Object.fromEntries(found.map((p) => [p, PERMISSION_WHY[p]])),
     urlScheme: '',
+    appLinks: '',
     privacyPolicyUrl: '',
   };
 }
@@ -95,6 +97,7 @@ export function formFromConfig(c: AppConfiguration): ConfigForm {
     permissions: [...c.permissions],
     permissionText: { ...(c.permissionText ?? {}) },
     urlScheme: c.urlScheme ?? '',
+    appLinks: (c.appLinks ?? []).join('\n'),
     privacyPolicyUrl: c.privacyPolicyUrl ?? '',
   };
 }
@@ -116,6 +119,7 @@ export function payloadFromForm(f: ConfigForm): Partial<AppConfiguration> {
     permissions: PERMISSIONS.filter((p) => f.permissions.includes(p)),
     permissionText,
     urlScheme: f.urlScheme.trim() || null,
+    appLinks: f.appLinks.split('\n').map((l) => l.trim()).filter(Boolean),
     privacyPolicyUrl: f.privacyPolicyUrl.trim() || null,
   };
 }

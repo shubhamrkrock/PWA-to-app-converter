@@ -21,6 +21,8 @@ export function capacitorPlan(cfg: AppConfiguration, webDir: string): CapacitorP
     '@capacitor/cli': TOOLCHAIN.npm['@capacitor/cli'],
     '@capacitor/android': TOOLCHAIN.npm['@capacitor/android'],
     '@capacitor/ios': TOOLCHAIN.npm['@capacitor/ios'],
+    '@capacitor/app': TOOLCHAIN.plugins['@capacitor/app'],
+    '@capacitor/browser': TOOLCHAIN.plugins['@capacitor/browser'],
   };
   const notes: string[] = [];
   for (const p of cfg.permissions) {
@@ -47,3 +49,4 @@ export function capacitorPlan(cfg: AppConfiguration, webDir: string): CapacitorP
   if (cfg.backgroundColor) (capacitorConfig as any).backgroundColor = cfg.backgroundColor;
   return { capacitorConfig, packages, notes };
 }
+

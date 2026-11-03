@@ -2,3 +2,4 @@ export * from './types.ts';
 export * from './build-state.ts';
 export * from './redact.ts';
 export * from './validate.ts';
+export * from './keystore.ts';

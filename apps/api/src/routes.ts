@@ -148,6 +148,7 @@ function configFromRow(r: ConfigRow): AppConfiguration {
     permissions: r.permissions ?? [],
     permissionText: (r.ios_config.permissionText as AppConfiguration['permissionText']) ?? {},
     urlScheme: (r.ios_config.urlScheme as string | undefined) ?? null,
+    appLinks: (r.android_config.appLinks as string[] | undefined) ?? [],
     privacyPolicyUrl: (r.ios_config.privacyPolicyUrl as string | undefined) ?? null,
   };
 }
@@ -346,7 +347,7 @@ export function buildRouter(): Router<Ctx> {
       icon_url: c.iconPath,
       splash_url: c.splashPath,
       permissions: c.permissions,
-      android_config: { themeColor: c.themeColor, backgroundColor: c.backgroundColor, orientation: c.orientation },
+      android_config: { themeColor: c.themeColor, backgroundColor: c.backgroundColor, orientation: c.orientation, appLinks: c.appLinks ?? [] },
       ios_config: { privacyPolicyUrl: c.privacyPolicyUrl, permissionText: c.permissionText ?? {}, urlScheme: c.urlScheme ?? null },
     });
     return json({ id: row!.id, ...c }, 201);
@@ -502,11 +503,14 @@ export function buildRouter(): Router<Ctx> {
     const user = await requireUser(req, ctx);
     const profile = await user.db.one<{ subscription_plan: string }>('profiles', { id: eq(user.id), select: 'subscription_plan' });
     if (!limitsFor(profile?.subscription_plan).signingVault) throw forbidden('The signing vault is not in your plan.');
-    const b = await readJson<{ platform: 'android' | 'ios'; type: string; label?: string; payload: Record<string, string> }>(req, 512 * 1024);
+    const b = await readJson<{ platform: 'android' | 'ios'; type: string; label?: string; payload: Record<string, string>; fingerprint?: string }>(req, 512 * 1024);
     const shape = CREDENTIAL_SHAPES[b.type];
     if (!shape || shape.platform !== b.platform) throw badRequest('Unknown credential type for that platform');
     for (const f of shape.fields) if (typeof b.payload?.[f] !== 'string' || !b.payload[f]) throw badRequest(`Missing ${f}`);
     const clean = Object.fromEntries(shape.fields.map((f) => [f, b.payload[f]!]));
+    // A key Git2App made in the browser comes with its certificate's SHA-256 (public), for assetlinks.json.
+    const fingerprint = b.fingerprint ?? null;
+    if (fingerprint !== null && (b.type !== 'android-keystore' || !/^([0-9A-F]{2}:){31}[0-9A-F]{2}$/.test(fingerprint))) throw badRequest('fingerprint must be an Android key\'s SHA-256, AA:BB:… (32 pairs)');
     const id = crypto.randomUUID();
     const sealed = await sealCredential(ctx.deps.env.CREDENTIALS_MASTER_KEY, new TextEncoder().encode(JSON.stringify(clean)), `${user.id}:${id}`);
     await ctx.service.insert('signing_credentials', {
@@ -517,6 +521,7 @@ export function buildRouter(): Router<Ctx> {
       label: (b.label ?? '').slice(0, 80),
       encrypted_payload: `\\x${[...sealed].map((x) => x.toString(16).padStart(2, '0')).join('')}`,
       key_reference: ctx.deps.env.CREDENTIALS_KEY_REF,
+      ...(fingerprint ? { fingerprint_sha256: fingerprint } : {}),
     });
     await audit(ctx, user.id, 'credential.stored', id, { type: b.type });
     return json({ id, platform: b.platform, type: b.type }, 201);

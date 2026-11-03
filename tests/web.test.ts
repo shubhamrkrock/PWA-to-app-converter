@@ -149,3 +149,11 @@ test('branch picker: the default branch comes first, then main, dev and prod, th
   assert.deepEqual(orderBranches(names, 'dev'), ['dev', 'main', 'prod', 'backup/x', 'claude/a', 'claude/b']);
   assert.deepEqual(orderBranches(['b', 'a'], 'gone'), ['gone', 'a', 'b']);
 });
+
+test('config form: app links are one per line, saved as a list and shown back the same', () => {
+  const f = { ...defaultForm('shubhamrkrock/Xpenstack'), appLinks: ' https://app.xpenstack.com/auth/callback \n\n' };
+  const p = payloadFromForm(f);
+  assert.deepEqual(p.appLinks, ['https://app.xpenstack.com/auth/callback']);
+  assert.equal(formFromConfig({ ...(p as any), appLinks: p.appLinks }).appLinks, 'https://app.xpenstack.com/auth/callback');
+  assert.ok('appLinks' in formErrors({ ...f, appLinks: 'xpenstack://auth/callback' }));
+});
