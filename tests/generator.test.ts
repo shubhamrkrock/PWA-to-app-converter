@@ -9,6 +9,7 @@ import type { AppConfiguration } from '../packages/shared/src/index.ts';
 import { validateConfig } from '../packages/shared/src/validate.ts';
 import {
   capacitorPlan,
+  appUrlScheme,
   patchAppBuildGradle,
   patchAndroidManifest,
   patchPbxproj,
@@ -151,4 +152,18 @@ test('config validation: url scheme and permission text rules', () => {
   const bad = validateConfig({ ...base, urlScheme: 'https', permissionText: { camera: 'short' } });
   assert.equal(bad.ok, false);
   if (!bad.ok) assert.deepEqual(Object.keys(bad.errors).sort(), ['permissionText', 'urlScheme']);
+});
+
+test('capacitor: every app can sign in and come back (App and Browser plugins, pinned)', () => {
+  const plan = capacitorPlan(base, 'pages');
+  assert.match(plan.packages['@capacitor/app'] ?? '', /^\d+\.\d+\.\d+$/);
+  assert.match(plan.packages['@capacitor/browser'] ?? '', /^\d+\.\d+\.\d+$/);
+});
+
+test('url scheme: an empty Link name uses the app id, so sign-in can always return to the app', () => {
+  assert.equal(appUrlScheme({ ...base, urlScheme: null }), 'com.xpenstack.app');
+  assert.equal(appUrlScheme({ ...base, packageId: 'com.My_Company.App2', urlScheme: null }), 'com.my-company.app2');
+  assert.equal(appUrlScheme({ ...base, urlScheme: 'xpenstack' }), 'xpenstack');
+  const out = patchAndroidManifest(fx('android/AndroidManifest.xml'), { ...base, urlScheme: appUrlScheme({ ...base, urlScheme: null }) });
+  assert.match(out, /<data android:scheme="com\.xpenstack\.app" \/>/);
 });

@@ -21,6 +21,8 @@ export function capacitorPlan(cfg: AppConfiguration, webDir: string): CapacitorP
     '@capacitor/cli': TOOLCHAIN.npm['@capacitor/cli'],
     '@capacitor/android': TOOLCHAIN.npm['@capacitor/android'],
     '@capacitor/ios': TOOLCHAIN.npm['@capacitor/ios'],
+    '@capacitor/app': TOOLCHAIN.plugins['@capacitor/app'],
+    '@capacitor/browser': TOOLCHAIN.plugins['@capacitor/browser'],
   };
   const notes: string[] = [];
   for (const p of cfg.permissions) {
@@ -46,4 +48,12 @@ export function capacitorPlan(cfg: AppConfiguration, webDir: string): CapacitorP
   };
   if (cfg.backgroundColor) (capacitorConfig as any).backgroundColor = cfg.backgroundColor;
   return { capacitorConfig, packages, notes };
+}
+
+/**
+ * The app's link name (URL scheme): the one the owner set, otherwise the app id in lower case
+ * (com.example.app), so every app can be returned to after signing in, and two apps never share one.
+ */
+export function appUrlScheme(cfg: Pick<AppConfiguration, 'packageId' | 'urlScheme'>): string {
+  return cfg.urlScheme || cfg.packageId.toLowerCase().replace(/_/g, '-');
 }

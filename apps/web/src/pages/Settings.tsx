@@ -122,8 +122,8 @@ export function Settings({ project }: { project: Project }) {
       {field(
         'urlScheme',
         'Link name (optional)',
-        <input value={form.urlScheme} autoCapitalize="off" spellCheck={false} placeholder="xpenstack" onChange={(e) => set('urlScheme', e.target.value)} />,
-        'Lets links like xpenstack://… open the app, for example after signing in.',
+        <input value={form.urlScheme} autoCapitalize="off" spellCheck={false} placeholder={form.packageId.toLowerCase().replace(/_/g, '-')} onChange={(e) => set('urlScheme', e.target.value)} />,
+        'Lets links like this://… open the app, for example after signing in. Empty uses the app id.',
       )}
       {field(
         'privacyPolicyUrl',
