@@ -67,15 +67,18 @@ export function patchInfoPlist(text: string, cfg: Pick<AppConfiguration, 'appNam
 }
 
 /** Entitlements file content for the capabilities in use (push needs aps-environment). */
-export function entitlements(cfg: Pick<AppConfiguration, 'permissions'>, variant: 'debug' | 'release'): string | null {
-  if (!cfg.permissions.includes('notifications')) return null;
+export function entitlements(cfg: Pick<AppConfiguration, 'permissions' | 'appLinks'>, variant: 'debug' | 'release'): string | null {
+  const push = cfg.permissions.includes('notifications');
+  const hosts = [...new Set((cfg.appLinks ?? []).map((l) => new URL(l).hostname))];
+  if (!push && !hosts.length) return null;
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">',
     '<plist version="1.0">',
     '<dict>',
-    '\t<key>aps-environment</key>',
-    `\t<string>${variant === 'release' ? 'production' : 'development'}</string>`,
+    ...(push ? ['\t<key>aps-environment</key>', `\t<string>${variant === 'release' ? 'production' : 'development'}</string>`] : []),
+    // Universal Links: the site's apple-app-site-association names this app.
+    ...(hosts.length ? ['\t<key>com.apple.developer.associated-domains</key>', '\t<array>', ...hosts.map((h) => `\t\t<string>applinks:${xmlEscape(h)}</string>`), '\t</array>'] : []),
     '</dict>',
     '</plist>',
     '',

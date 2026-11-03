@@ -61,7 +61,7 @@ export class FakeDb {
     if (uid === null) return this.tables[table === 'signing_credentials_meta' ? 'signing_credentials' : table] ?? [];
     if (table === 'signing_credentials') throw Object.assign(new Error('permission denied'), { status: 401 });
     if (table === 'signing_credentials_meta') {
-      return this.tables.signing_credentials!.filter((r) => r.user_id === uid).map(({ id, platform, credential_type, label, created_at }) => ({ id, platform, credential_type, label, created_at }));
+      return this.tables.signing_credentials!.filter((r) => r.user_id === uid).map(({ id, platform, credential_type, label, created_at, fingerprint_sha256 }) => ({ id, platform, credential_type, label, created_at, fingerprint_sha256: fingerprint_sha256 ?? null }));
     }
     if (table === 'profiles') return this.tables.profiles!.filter((r) => r.id === uid);
     return (this.tables[table] ?? []).filter((r) => r.user_id === uid);

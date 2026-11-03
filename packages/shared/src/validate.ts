@@ -74,6 +74,11 @@ export function validateConfig(input: Partial<AppConfiguration>): { ok: true; co
   if (urlScheme !== null && !/^[a-z][a-z0-9+.-]{1,40}$/.test(urlScheme)) e.urlScheme = 'URL scheme must be lower-case letters, digits, + . or -, starting with a letter.';
   if (urlScheme !== null && ['http', 'https', 'file', 'about', 'javascript', 'data', 'content', 'intent'].includes(urlScheme)) e.urlScheme = 'That URL scheme is reserved.';
 
+  // App links: plain https addresses on a real host, no wildcard, query or fragment; at most five.
+  const appLinks = [...new Set((input.appLinks ?? []).map((l) => String(l).trim()).filter(Boolean))];
+  const LINK = /^https:\/\/([a-z0-9-]+\.)+[a-z]{2,}(\/[A-Za-z0-9._~\/-]+)$/;
+  if (appLinks.length > 5 || appLinks.some((l) => !LINK.test(l))) e.appLinks = 'App links must be up to five https:// addresses with a path, like https://app.example.com/auth/callback.';
+
   const permissionText: Partial<Record<NativePermission, string>> = {};
   for (const [k, v] of Object.entries(input.permissionText ?? {})) {
     if (!PERMISSIONS.includes(k as NativePermission)) continue;
@@ -102,6 +107,7 @@ export function validateConfig(input: Partial<AppConfiguration>): { ok: true; co
       permissions: permissions.sort(),
       permissionText,
       urlScheme,
+      appLinks,
       privacyPolicyUrl,
     },
   };

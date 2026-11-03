@@ -152,3 +152,34 @@ test('config validation: url scheme and permission text rules', () => {
   assert.equal(bad.ok, false);
   if (!bad.ok) assert.deepEqual(Object.keys(bad.errors).sort(), ['permissionText', 'urlScheme']);
 });
+
+test('capacitor: every app can sign in and come back (App and Browser plugins, pinned)', () => {
+  const plan = capacitorPlan(base, 'pages');
+  assert.match(plan.packages['@capacitor/app'] ?? '', /^\d+\.\d+\.\d+$/);
+  assert.match(plan.packages['@capacitor/browser'] ?? '', /^\d+\.\d+\.\d+$/);
+});
+
+
+// Owner, 3 Nov 2026: sign-in comes back into the app through a verified app link, never a custom
+// scheme any app can claim (Xpenstack security review F1, 1 Nov).
+test('app links: Android opens https links of the app\'s own site, verified by assetlinks.json', () => {
+  const out = patchAndroidManifest(fx('android/AndroidManifest.xml'), { ...base, appLinks: ['https://app.xpenstack.com/auth/callback'] });
+  assert.match(out, /<intent-filter android:autoVerify="true">/);
+  assert.match(out, /<data android:scheme="https" android:host="app\.xpenstack\.com" android:path="\/auth\/callback" \/>/);
+  assert.doesNotMatch(patchAndroidManifest(fx('android/AndroidManifest.xml'), base), /autoVerify/);
+});
+
+test('app links: iPhone gets the associated domain', () => {
+  const ent = entitlements({ ...base, appLinks: ['https://app.xpenstack.com/auth/callback'] }, 'debug');
+  assert.match(ent ?? '', /com\.apple\.developer\.associated-domains<\/key>\s*<array>\s*<string>applinks:app\.xpenstack\.com<\/string>/);
+  assert.equal(entitlements(base, 'debug'), null);
+});
+
+test('app links: only plain https addresses on a real host are accepted', () => {
+  assert.ok(validateConfig({ ...base, appLinks: ['https://app.xpenstack.com/auth/callback'] }).ok);
+  for (const bad of ['http://a.com/x', 'https://*.a.com/x', 'https://a.com', 'https://localhost/x', 'https://a.com/x?y=1', 'xpenstack://auth/callback', 'https://a.com/x#y', 'https://a.com/x y']) {
+    const v = validateConfig({ ...base, appLinks: [bad] });
+    assert.ok(!v.ok && 'appLinks' in v.errors, bad);
+  }
+  assert.ok(!validateConfig({ ...base, appLinks: [1, 2, 3, 4, 5, 6].map((n) => `https://a.com/x${n}`) }).ok, 'at most five');
+});

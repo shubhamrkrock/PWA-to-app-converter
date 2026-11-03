@@ -123,7 +123,13 @@ export function Settings({ project }: { project: Project }) {
         'urlScheme',
         'Link name (optional)',
         <input value={form.urlScheme} autoCapitalize="off" spellCheck={false} placeholder="xpenstack" onChange={(e) => set('urlScheme', e.target.value)} />,
-        'Lets links like xpenstack://… open the app, for example after signing in.',
+        'Lets links like xpenstack://… open the app. Any app can claim such a name, so sign-in should come back through an app link below instead.',
+      )}
+      {field(
+        'appLinks',
+        'App links (optional)',
+        <textarea value={form.appLinks} rows={2} autoCapitalize="off" spellCheck={false} placeholder="https://app.example.com/auth/callback" onChange={(e) => set('appLinks', e.target.value)} />,
+        'Your site\'s addresses the app opens itself, one per line, for example where sign-in comes back. Your site must publish the app link file with the key\'s fingerprint (Keys).',
       )}
       {field(
         'privacyPolicyUrl',

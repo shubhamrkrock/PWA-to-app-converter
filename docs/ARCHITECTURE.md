@@ -123,6 +123,26 @@ limited native access. The engine therefore recommends **per-platform**:
 - **iOS**: Capacitor always (no TWA equivalent). A pure web wrapper risks Apple's minimum
   functionality rejection, which the store-readiness report flags rather than hides.
 
+### 4.2 Signing in from inside the app (3 Nov 2026)
+
+A Capacitor app serves its pages from an app-only address (`https://localhost`), which no
+sign-in provider knows. A provider that returns "to the page I'm on" falls back to the
+website, and the person ends up in the phone's browser, outside the app. Every Capacitor app
+gets the pinned `@capacitor/app` and `@capacitor/browser` plugins (reachable from the page as
+`window.Capacitor.Plugins.App` and `.Browser`, no package in the web project): the web app opens
+the provider with `Browser.open` and finishes on `App`'s `appUrlOpen` event.
+
+The way back is a **verified app link** (Settings, App links: `https://<site>/<path>`), never a
+custom scheme, which any app on the phone can claim. Android gets an `autoVerify` intent filter
+and iOS the `applinks:` associated domain. The site proves the app is its own: Android checks
+`/.well-known/assetlinks.json` for the package name and the SHA-256 of the signing key. So one
+fixed key must sign every build: Keys, **Make an Android key for me**, makes it in the person's
+browser with Web Crypto (`packages/shared/src/keystore.ts`: RSA 3072, 30 years, PKCS#12 with
+PBES2/AES-256 and an HMAC-SHA256 check, opened by keytool, jarsigner and apksigner), stores it in
+the vault like an uploaded keystore, and keeps its fingerprint (public) beside it
+(`signing_credentials.fingerprint_sha256`, migration 0006). Builds signed with it are release
+builds (an installable signed APK and the AAB).
+
 For Xpenstack specifically: it is a React+Vite PWA served on `app.xpenstack.com` that the
 owner controls, but it needs native features (push via FCM, file share sheet, deep links
 for `xpenstack://auth/callback`, biometric-gated storage later). So the recommendation is

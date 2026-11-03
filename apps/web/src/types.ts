@@ -86,4 +86,5 @@ export interface Credential {
   credential_type: string;
   label: string;
   created_at: string;
+  fingerprint_sha256: string | null;
 }

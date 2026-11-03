@@ -409,7 +409,7 @@ test('vault: credentials are stored encrypted, never returned, and decrypted onl
   const row = w.db.tables.signing_credentials![0]!;
   assert.doesNotMatch(String(row.encrypted_payload), /storepass|keypass|S0VZU1RPUkU/);
   const list = await call('GET', '/api/v1/signing-credentials', { token: alice });
-  assert.deepEqual(Object.keys(list.data[0]).sort(), ['created_at', 'credential_type', 'id', 'label', 'platform']);
+  assert.deepEqual(Object.keys(list.data[0]).sort(), ['created_at', 'credential_type', 'fingerprint_sha256', 'id', 'label', 'platform']);
   // Bob cannot use Alice's credential id
   const bob = await w.tokenFor(BOB);
   w.db.tables.github_installations!.push({ user_id: BOB, installation_id: 8 });
@@ -438,6 +438,20 @@ test('vault: credentials are stored encrypted, never returned, and decrypted onl
   assert.ok(got.data.ticket);
   assert.ok(w.db.tables.audit_events!.some((e) => e.action === 'credential.released_to_signer'));
   assert.equal((await call('DELETE', `/api/v1/signing-credentials/${stored.data.id}`, { token: bob })).status, 404);
+});
+
+test('vault: a key made in the browser keeps its public fingerprint for assetlinks.json; a bad one is refused', async () => {
+  const { w, call } = await setup();
+  await seedAlice(w);
+  const alice = await w.tokenFor(ALICE);
+  const payload = { keystoreB64: 'S0VZU1RPUkU=', storePassword: 'p'.repeat(48), keyAlias: 'upload', keyPassword: 'p'.repeat(48) };
+  const fingerprint = Array.from({ length: 32 }, (_, i) => (i * 7 % 256).toString(16).padStart(2, '0').toUpperCase()).join(':');
+  const made = await call('POST', '/api/v1/signing-credentials', { token: alice, body: { platform: 'android', type: 'android-keystore', label: 'made', payload, fingerprint } });
+  assert.equal(made.status, 201);
+  const list = await call('GET', '/api/v1/signing-credentials', { token: alice });
+  assert.equal(list.data[0].fingerprint_sha256, fingerprint);
+  assert.equal((await call('POST', '/api/v1/signing-credentials', { token: alice, body: { platform: 'android', type: 'android-keystore', payload, fingerprint: 'aa:bb' } })).status, 400);
+  assert.equal((await call('POST', '/api/v1/signing-credentials', { token: alice, body: { platform: 'ios', type: 'ios-certificate', payload: { p12B64: 'x', p12Password: 'y', profileB64: 'z', teamId: 'ABCDE12345' }, fingerprint } })).status, 400);
 });
 
 test('vault: wrong credential type for the platform, and missing fields, are refused', async () => {

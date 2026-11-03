@@ -5,7 +5,7 @@
  */
 
 export const TOOLCHAIN = {
-  id: '2026.10-cap8.6',
+  id: '2026.11-cap8.6',
   node: '22',
   java: '21',
   androidCompileSdk: 36,
@@ -22,6 +22,10 @@ export const TOOLCHAIN = {
     '@bubblewrap/cli': '1.27.0',
   },
   plugins: {
+    // In every Capacitor app: sign-in opens in an in-app browser tab (Browser) and returns to the
+    // app through its link name (App's appUrlOpen event), instead of leaving for the browser.
+    '@capacitor/app': '8.1.2',
+    '@capacitor/browser': '8.0.5',
     '@capacitor/push-notifications': '8.1.3',
     '@aparajita/capacitor-biometric-auth': '10.0.0',
     '@capacitor-community/bluetooth-le': '8.3.0',

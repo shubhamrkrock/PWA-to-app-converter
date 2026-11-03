@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useApp } from '../session.tsx';
 import { ActionButton, ErrorNote, Loading, timeAgo, useLoad } from '../ui.tsx';
 import { fileToBase64, looksLike } from '../lib/files.ts';
+import { makeAndroidKey, type MadeAndroidKey } from '@git2app/shared';
 import type { Credential } from '../types.ts';
 
 const TYPE_LABEL: Record<string, string> = {
@@ -13,7 +14,7 @@ const TYPE_LABEL: Record<string, string> = {
 export function Keys() {
   const { api } = useApp();
   const creds = useLoad(() => api.get<Credential[]>('/signing-credentials'), []);
-  const [adding, setAdding] = useState<'android' | 'ios' | null>(null);
+  const [adding, setAdding] = useState<'android' | 'ios' | 'make' | null>(null);
 
   return (
     <section>
@@ -32,6 +33,7 @@ export function Keys() {
               <span className="muted">
                 {TYPE_LABEL[c.credential_type] ?? c.credential_type} · added {timeAgo(c.created_at)}
               </span>
+              {c.fingerprint_sha256 && <Fingerprint value={c.fingerprint_sha256} />}
             </span>
             <ActionButton
               kind="danger"
@@ -49,6 +51,9 @@ export function Keys() {
       {creds.data?.length === 0 && <p className="muted">No keys yet.</p>}
       {!adding && (
         <div className="actions">
+          <button className="btn btn-primary" onClick={() => setAdding('make')}>
+            Make an Android key for me
+          </button>
           <button className="btn btn-secondary" onClick={() => setAdding('android')}>
             Add Android key
           </button>
@@ -57,7 +62,16 @@ export function Keys() {
           </button>
         </div>
       )}
-      {adding && (
+      {adding === 'make' && (
+        <MakeKey
+          onDone={async () => {
+            setAdding(null);
+            await creds.reload();
+          }}
+          onCancel={() => setAdding(null)}
+        />
+      )}
+      {adding && adding !== 'make' && (
         <KeyForm
           platform={adding}
           onDone={async () => {
@@ -166,5 +180,103 @@ function KeyForm({ platform, onDone, onCancel }: { platform: 'android' | 'ios'; 
         </button>
       </div>
     </form>
+  );
+}
+
+/** The certificate fingerprint, for /.well-known/assetlinks.json and Google Play. Public. */
+function Fingerprint({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <span className="muted fingerprint">
+      SHA-256 <code>{value}</code>{' '}
+      <button type="button" className="btn btn-secondary btn-small" onClick={() => navigator.clipboard.writeText(value).then(() => setCopied(true))}>
+        {copied ? 'Copied' : 'Copy'}
+      </button>
+    </span>
+  );
+}
+
+function download(name: string, bytes: Uint8Array | string, type: string) {
+  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/**
+ * Makes the Android key in this browser (Web Crypto, packages/shared/src/keystore.ts) and stores it
+ * in the vault like an uploaded one. One fixed key signs every build of the app, so its fingerprint
+ * can be published for verified app links and registered with Google Play.
+ */
+function MakeKey({ onDone, onCancel }: { onDone: () => Promise<void>; onCancel: () => void }) {
+  const { api } = useApp();
+  const [name, setName] = useState('Android upload key');
+  const [made, setMade] = useState<MadeAndroidKey | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  const [busy, setBusy] = useState(false);
+
+  const make = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const k = await makeAndroidKey(name);
+      const { fingerprint, ...payload } = k;
+      await api.post('/signing-credentials', { platform: 'android', type: 'android-keystore', label: name.trim().slice(0, 80), payload, fingerprint });
+      setMade(k);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (made) {
+    const bytes = Uint8Array.from(atob(made.keystoreB64), (c) => c.charCodeAt(0));
+    return (
+      <div className="card form">
+        <h2>Your Android key is saved</h2>
+        <p>It now signs your store builds. Its fingerprint goes into your website's app link file:</p>
+        <Fingerprint value={made.fingerprint} />
+        <p className="muted">
+          Keep a backup copy somewhere safe, such as your password manager: without it, a lost key has to be reset through Google Play support. The password is shown only now.
+        </p>
+        <div className="actions">
+          <button type="button" className="btn btn-secondary" onClick={() => download('android-upload-key.p12', bytes, 'application/x-pkcs12')}>
+            Download backup key file
+          </button>
+          <button type="button" className="btn btn-secondary" onClick={() => navigator.clipboard.writeText(made.storePassword)}>
+            Copy its password
+          </button>
+        </div>
+        <p className="muted">Key alias: upload. The key password is the same as the file password.</p>
+        <div className="actions">
+          <button type="button" className="btn btn-primary" onClick={() => void onDone()}>
+            Done
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card form">
+      <h2>Make an Android key</h2>
+      <p className="muted">Your browser makes a new key, locks it and saves it in your vault. Nothing to install or upload.</p>
+      <label>
+        Name (for you)
+        <input value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
+      </label>
+      <ErrorNote error={error} />
+      <div className="actions">
+        <button type="button" className="btn btn-primary" disabled={busy || !name.trim()} onClick={() => void make()}>
+          {busy ? 'Making the key…' : 'Make and save the key'}
+        </button>
+        <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={busy}>
+          Cancel
+        </button>
+      </div>
+    </div>
   );
 }

@@ -20,7 +20,7 @@ export function androidPermissionsFor(perms: readonly NativePermission[]): strin
   return [...set].sort();
 }
 
-export function patchAndroidManifest(text: string, cfg: Pick<AppConfiguration, 'permissions' | 'orientation' | 'urlScheme'>): string {
+export function patchAndroidManifest(text: string, cfg: Pick<AppConfiguration, 'permissions' | 'orientation' | 'urlScheme' | 'appLinks'>): string {
   // Permissions: replace the template's block with exactly the enabled set.
   const perms = androidPermissionsFor(cfg.permissions);
   const block = perms.map((p) => `    <uses-permission android:name="${p}" />`).join('\n');
@@ -42,6 +42,22 @@ export function patchAndroidManifest(text: string, cfg: Pick<AppConfiguration, '
       '                <category android:name="android.intent.category.DEFAULT" />',
       '                <category android:name="android.intent.category.BROWSABLE" />',
       `                <data android:scheme="${xmlEscape(cfg.urlScheme)}" />`,
+      '            </intent-filter>',
+      '',
+    ].join('\n');
+    out = replaceOnce(out, /(\n\s*<\/activity>)/, `\n${filter}$1`, 'end of MainActivity in AndroidManifest.xml');
+  }
+
+  // Verified app links: Android opens these https addresses in the app once the site's
+  // /.well-known/assetlinks.json names this app and its signing key (autoVerify).
+  for (const link of cfg.appLinks ?? []) {
+    const u = new URL(link);
+    const filter = [
+      '            <intent-filter android:autoVerify="true">',
+      '                <action android:name="android.intent.action.VIEW" />',
+      '                <category android:name="android.intent.category.DEFAULT" />',
+      '                <category android:name="android.intent.category.BROWSABLE" />',
+      `                <data android:scheme="https" android:host="${xmlEscape(u.hostname)}" android:path="${xmlEscape(u.pathname)}" />`,
       '            </intent-filter>',
       '',
     ].join('\n');
