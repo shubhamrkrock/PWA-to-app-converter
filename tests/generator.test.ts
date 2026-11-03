@@ -159,6 +159,13 @@ test('capacitor: every app can sign in and come back (App and Browser plugins, p
   assert.match(plan.packages['@capacitor/browser'] ?? '', /^\d+\.\d+\.\d+$/);
 });
 
+// Owner, 3 Nov 2026: Export and backups did nothing in the Xpenstack app; a web download needs these two inside an app.
+test('capacitor: every app can save a file it made (Filesystem and Share plugins, pinned)', () => {
+  const plan = capacitorPlan(base, 'pages');
+  assert.equal(plan.packages['@capacitor/filesystem'], '8.1.5');
+  assert.equal(plan.packages['@capacitor/share'], '8.0.3');
+});
+
 
 // Owner, 3 Nov 2026: sign-in comes back into the app through a verified app link, never a custom
 // scheme any app can claim (Xpenstack security review F1, 1 Nov).
