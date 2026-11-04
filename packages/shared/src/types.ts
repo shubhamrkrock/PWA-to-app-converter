@@ -120,6 +120,8 @@ export interface AppConfiguration {
   urlScheme?: string | null;
   /** https addresses the app opens itself, verified by the site (assetlinks.json, apple-app-site-association). */
   appLinks?: string[];
+  /** Firebase's google-services.json for the Android app, as text (enables push notifications). Not a secret, but owner-only. */
+  firebaseAndroid?: string | null;
   privacyPolicyUrl: string | null;
 }
 
