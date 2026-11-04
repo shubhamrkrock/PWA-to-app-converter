@@ -3,7 +3,7 @@ import { PERMISSIONS, type NativePermission } from '@git2app/shared';
 import { useApp } from '../session.tsx';
 import { ErrorNote, Loading } from '../ui.tsx';
 import { ApiError } from '../lib/api.ts';
-import { defaultForm, formErrors, formFromConfig, payloadFromForm, PERMISSION_LABEL, withPermission, type ConfigForm } from '../lib/config-form.ts';
+import { defaultForm, formErrors, formFromConfig, payloadFromForm, PERMISSION_LABEL, withPermission, firebaseProject, type ConfigForm } from '../lib/config-form.ts';
 import type { AnalysisRow, Project, SavedConfig } from '../types.ts';
 
 export function Settings({ project }: { project: Project }) {
@@ -119,6 +119,29 @@ export function Settings({ project }: { project: Project }) {
         ))}
         {errors.permissionText && <small className="error">{errors.permissionText}</small>}
       </fieldset>
+      {form.permissions.includes('notifications') &&
+        field(
+          'firebaseAndroid',
+          'Firebase file for Android (for notifications)',
+          <div className="actions">
+            <input
+              type="file"
+              accept=".json,application/json"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void file.text().then((text) => set('firebaseAndroid', text));
+                e.target.value = '';
+              }}
+            />
+            {form.firebaseAndroid && (
+              <>
+                <small>Added: {firebaseProject(form.firebaseAndroid)}</small>
+                <button type="button" className="btn" onClick={() => set('firebaseAndroid', '')}>Remove</button>
+              </>
+            )}
+          </div>,
+          'Choose google-services.json, downloaded from your Firebase project (Project settings, General, your Android app). Android notifications need it. It is kept with this app\'s settings and put into the Android build.',
+        )}
       {field(
         'urlScheme',
         'Link name (optional)',

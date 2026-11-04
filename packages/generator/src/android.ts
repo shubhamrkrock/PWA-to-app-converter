@@ -65,3 +65,11 @@ export function patchAndroidManifest(text: string, cfg: Pick<AppConfiguration, '
   }
   return out;
 }
+
+/**
+ * The text of android/app/google-services.json, or null when the app has no Firebase file.
+ * Capacitor's Android template applies the Google services plugin by itself when that file exists.
+ */
+export function googleServicesJson(cfg: Pick<AppConfiguration, 'firebaseAndroid'>): string | null {
+  return cfg.firebaseAndroid ? cfg.firebaseAndroid : null;
+}

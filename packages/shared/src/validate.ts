@@ -87,6 +87,18 @@ export function validateConfig(input: Partial<AppConfiguration>): { ok: true; co
     if (t) permissionText[k as NativePermission] = t;
   }
 
+  // Firebase's google-services.json: JSON for this Android package, stored compact.
+  let firebaseAndroid: string | null = null;
+  const fb = typeof input.firebaseAndroid === 'string' ? input.firebaseAndroid.trim() : '';
+  if (fb) {
+    let j: any = null;
+    try { j = fb.length <= 20_000 ? JSON.parse(fb) : null; } catch { j = null; }
+    const pkgs: string[] = Array.isArray(j?.client) ? j.client.map((c: any) => c?.client_info?.android_client_info?.package_name).filter(Boolean) : [];
+    if (!j || typeof j?.project_info?.project_id !== 'string') e.firebaseAndroid = 'That is not a Firebase google-services.json file.';
+    else if (!pkgs.includes(packageId)) e.firebaseAndroid = `That Firebase file is for ${pkgs.join(', ') || 'no Android app'}, not ${packageId}. Add the Android app with that package name in Firebase and download its file again.`;
+    else firebaseAndroid = JSON.stringify(j);
+  }
+
   const privacyPolicyUrl = input.privacyPolicyUrl ?? null;
   if (privacyPolicyUrl !== null && !/^https:\/\/[^\s]+$/.test(privacyPolicyUrl)) e.privacyPolicyUrl = 'Privacy policy must be an https:// link.';
 
@@ -108,6 +120,7 @@ export function validateConfig(input: Partial<AppConfiguration>): { ok: true; co
       permissionText,
       urlScheme,
       appLinks,
+      firebaseAndroid,
       privacyPolicyUrl,
     },
   };

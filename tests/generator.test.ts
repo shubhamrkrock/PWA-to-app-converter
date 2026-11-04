@@ -17,6 +17,7 @@ import {
   twaManifest,
   assetLinks,
   PatchError,
+  googleServicesJson,
 } from '../packages/generator/src/index.ts';
 
 const fx = (p: string) => readFileSync(new URL(`./fixtures/cap8/${p}`, import.meta.url), 'utf8');
@@ -189,4 +190,29 @@ test('app links: only plain https addresses on a real host are accepted', () => 
     assert.ok(!v.ok && 'appLinks' in v.errors, bad);
   }
   assert.ok(!validateConfig({ ...base, appLinks: [1, 2, 3, 4, 5, 6].map((n) => `https://a.com/x${n}`) }).ok, 'at most five');
+});
+
+// A made-up google-services.json in Firebase's shape (no real project).
+const firebaseFile = (pkg = 'com.xpenstack.app') => JSON.stringify({
+  project_info: { project_number: '123', project_id: 'demo-app-1', storage_bucket: 'demo-app-1.appspot.com' },
+  client: [{ client_info: { mobilesdk_app_id: '1:123:android:abc', android_client_info: { package_name: pkg } }, api_key: [{ current_key: 'demo-key' }] }],
+  configuration_version: '1',
+}, null, 2);
+
+test('Firebase file: accepted for the same package, stored compact, and written as google-services.json for Android only', () => {
+  const v = validateConfig({ ...base, firebaseAndroid: firebaseFile() });
+  assert.ok(v.ok);
+  assert.equal(v.ok && v.config.firebaseAndroid, JSON.stringify(JSON.parse(firebaseFile())));
+  assert.equal(googleServicesJson(v.ok ? v.config : base), JSON.stringify(JSON.parse(firebaseFile())));
+  assert.equal(googleServicesJson(base), null, 'no file without one');
+  assert.ok(validateConfig({ ...base, firebaseAndroid: null }).ok, 'optional');
+});
+
+test('Firebase file: refused when it is not JSON, has no project, or is for another package', () => {
+  for (const bad of ['not json', '{"client":[]}', firebaseFile('com.other.app'), 'x'.repeat(40_000)]) {
+    const v = validateConfig({ ...base, firebaseAndroid: bad });
+    assert.ok(!v.ok && 'firebaseAndroid' in v.errors, bad.slice(0, 30));
+  }
+  const other = validateConfig({ ...base, firebaseAndroid: firebaseFile('com.other.app') });
+  assert.match(!other.ok ? String(other.errors.firebaseAndroid) : '', /com\.xpenstack\.app/);
 });
