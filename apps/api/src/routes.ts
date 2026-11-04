@@ -149,6 +149,7 @@ function configFromRow(r: ConfigRow): AppConfiguration {
     permissionText: (r.ios_config.permissionText as AppConfiguration['permissionText']) ?? {},
     urlScheme: (r.ios_config.urlScheme as string | undefined) ?? null,
     appLinks: (r.android_config.appLinks as string[] | undefined) ?? [],
+    firebaseAndroid: (r.android_config.firebaseAndroid as string | undefined) ?? null,
     privacyPolicyUrl: (r.ios_config.privacyPolicyUrl as string | undefined) ?? null,
   };
 }
@@ -347,7 +348,7 @@ export function buildRouter(): Router<Ctx> {
       icon_url: c.iconPath,
       splash_url: c.splashPath,
       permissions: c.permissions,
-      android_config: { themeColor: c.themeColor, backgroundColor: c.backgroundColor, orientation: c.orientation, appLinks: c.appLinks ?? [] },
+      android_config: { themeColor: c.themeColor, backgroundColor: c.backgroundColor, orientation: c.orientation, appLinks: c.appLinks ?? [], firebaseAndroid: c.firebaseAndroid ?? null },
       ios_config: { privacyPolicyUrl: c.privacyPolicyUrl, permissionText: c.permissionText ?? {}, urlScheme: c.urlScheme ?? null },
     });
     return json({ id: row!.id, ...c }, 201);

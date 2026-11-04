@@ -8,7 +8,7 @@
 import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { AppConfiguration } from '@git2app/shared';
-import { capacitorPlan, patchAndroidManifest, patchAppBuildGradle, patchInfoPlist, patchPbxproj, entitlements, TOOLCHAIN, twaManifest } from '@git2app/generator';
+import { capacitorPlan, googleServicesJson, patchAndroidManifest, patchAppBuildGradle, patchInfoPlist, patchPbxproj, entitlements, TOOLCHAIN, twaManifest } from '@git2app/generator';
 import { handToSandbox, run, takeFromSandbox } from './exec.ts';
 import type { Logger } from './log.ts';
 import { StageError } from './workspace.ts';
@@ -91,6 +91,11 @@ export async function createCapacitorProject(opts: {
   if (platform === 'android') {
     await editFile(join(nativeDir, 'android/app/build.gradle'), (s) => patchAppBuildGradle(s, config));
     await editFile(join(nativeDir, 'android/app/src/main/AndroidManifest.xml'), (s) => patchAndroidManifest(s, config));
+    const firebase = googleServicesJson(config);
+    if (firebase) {
+      await writeFile(join(nativeDir, 'android/app/google-services.json'), firebase);
+      logger.line('Firebase file added: push notifications can reach this app.');
+    }
   } else {
     await editFile(join(nativeDir, 'ios/App/App.xcodeproj/project.pbxproj'), (s) => patchPbxproj(s, config));
     await editFile(join(nativeDir, 'ios/App/App/Info.plist'), (s) => patchInfoPlist(s, config));

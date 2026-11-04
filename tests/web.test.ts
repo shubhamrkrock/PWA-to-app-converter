@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { hrefFor, parseRoute, type Route } from '../apps/web/src/lib/routes.ts';
 import { failedStage, formatBytes, isFinished, steps, toneOf } from '../apps/web/src/lib/status.ts';
-import { defaultForm, formErrors, formFromConfig, payloadFromForm, PERMISSION_WHY, suggestId, withPermission } from '../apps/web/src/lib/config-form.ts';
+import { defaultForm, firebaseProject, formErrors, formFromConfig, payloadFromForm, PERMISSION_WHY, suggestId, withPermission } from '../apps/web/src/lib/config-form.ts';
 import { ApiError, makeApi } from '../apps/web/src/lib/api.ts';
 import { bytesToBase64, fileToBase64, looksLike } from '../apps/web/src/lib/files.ts';
 import { orderBranches } from '../apps/web/src/lib/branches.ts';
@@ -156,4 +156,19 @@ test('config form: app links are one per line, saved as a list and shown back th
   assert.deepEqual(p.appLinks, ['https://app.xpenstack.com/auth/callback']);
   assert.equal(formFromConfig({ ...(p as any), appLinks: p.appLinks }).appLinks, 'https://app.xpenstack.com/auth/callback');
   assert.ok('appLinks' in formErrors({ ...f, appLinks: 'xpenstack://auth/callback' }));
+});
+
+test('config form: the Firebase file is kept as text, saved, shown back, and checked while typing', () => {
+  const file = JSON.stringify({ project_info: { project_id: 'demo-app-1' }, client: [{ client_info: { android_client_info: { package_name: 'com.xpenstack.app' } } }] });
+  const f = { ...defaultForm('shubhamrkrock/Xpenstack'), packageId: 'com.xpenstack.app', sameId: true, firebaseAndroid: file };
+  const p = payloadFromForm(f);
+  assert.equal(p.firebaseAndroid, file);
+  assert.equal(formFromConfig({ ...(p as any) }).firebaseAndroid, file);
+  assert.equal(payloadFromForm({ ...f, firebaseAndroid: '  ' }).firebaseAndroid, null);
+  assert.ok('firebaseAndroid' in formErrors({ ...f, firebaseAndroid: '{}' }));
+});
+
+test('config form: the Settings page names the Firebase project of the chosen file', () => {
+  assert.equal(firebaseProject('{"project_info":{"project_id":"demo-app-1"}}'), 'project demo-app-1');
+  assert.equal(firebaseProject('nope'), 'not a Firebase file');
 });

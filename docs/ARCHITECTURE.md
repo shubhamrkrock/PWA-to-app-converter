@@ -143,6 +143,17 @@ the vault like an uploaded keystore, and keeps its fingerprint (public) beside i
 (`signing_credentials.fingerprint_sha256`, migration 0006). Builds signed with it are release
 builds (an installable signed APK and the AAB).
 
+### 4.3 Push notifications on Android (4 Nov 2026)
+
+With the `notifications` permission, Settings shows **Firebase file for Android**: the person picks
+the `google-services.json` of their own Firebase project. `validateConfig` checks it is that
+file and names this app's package, and keeps it compact in the configuration
+(`app_configurations.android_config.firebaseAndroid`; no new column). The runner writes it to
+`android/app/google-services.json` (`googleServicesJson`, `packages/generator/src/android.ts`), and
+Capacitor's own Android template then applies the Google services plugin. The file is not a
+secret (Firebase puts it inside every app), so it is not in the vault; sending notifications needs
+the project's service-account key, which stays on the person's own server, never in Git2App.
+
 For Xpenstack specifically: it is a React+Vite PWA served on `app.xpenstack.com` that the
 owner controls, but it needs native features (push via FCM, file share sheet, deep links
 for `xpenstack://auth/callback`, biometric-gated storage later). So the recommendation is

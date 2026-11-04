@@ -15,6 +15,7 @@ export interface ConfigForm {
   permissionText: Partial<Record<NativePermission, string>>;
   urlScheme: string;
   appLinks: string; // one per line
+  firebaseAndroid: string; // google-services.json text, '' for none
   privacyPolicyUrl: string;
 }
 
@@ -79,6 +80,7 @@ export function defaultForm(
     permissionText: Object.fromEntries(found.map((p) => [p, PERMISSION_WHY[p]])),
     urlScheme: '',
     appLinks: '',
+    firebaseAndroid: '',
     privacyPolicyUrl: '',
   };
 }
@@ -98,6 +100,7 @@ export function formFromConfig(c: AppConfiguration): ConfigForm {
     permissionText: { ...(c.permissionText ?? {}) },
     urlScheme: c.urlScheme ?? '',
     appLinks: (c.appLinks ?? []).join('\n'),
+    firebaseAndroid: c.firebaseAndroid ?? '',
     privacyPolicyUrl: c.privacyPolicyUrl ?? '',
   };
 }
@@ -120,6 +123,7 @@ export function payloadFromForm(f: ConfigForm): Partial<AppConfiguration> {
     permissionText,
     urlScheme: f.urlScheme.trim() || null,
     appLinks: f.appLinks.split('\n').map((l) => l.trim()).filter(Boolean),
+    firebaseAndroid: f.firebaseAndroid.trim() || null,
     privacyPolicyUrl: f.privacyPolicyUrl.trim() || null,
   };
 }
@@ -145,3 +149,13 @@ export const PERMISSION_LABEL: Record<NativePermission, string> = {
   biometrics: 'Face ID / fingerprint',
   bluetooth: 'Bluetooth',
 };
+
+/** The Firebase project a google-services.json belongs to, for the Settings page ("Added: …"). */
+export function firebaseProject(text: string): string {
+  try {
+    const id = JSON.parse(text)?.project_info?.project_id;
+    return typeof id === 'string' ? `project ${id}` : 'not a Firebase file';
+  } catch {
+    return 'not a Firebase file';
+  }
+}
